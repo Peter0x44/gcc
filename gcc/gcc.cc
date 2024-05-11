@@ -2138,6 +2138,11 @@ static int have_E = 0;
 /* Pointer to output file name passed in with -o. */
 static const char *output_file = 0;
 
+/* We write the output file to a temp file, and rename it if linking
+   is successful. This is to prevent mistakes like: gcc -o file.c -lm from
+   deleting the user's code.  */
+static const char *output_file_temp = 0;
+
 /* Pointer to input file name passed in with -truncate.
    This file should be truncated after linking. */
 static const char *totruncate_file = 0;
@@ -4611,10 +4616,18 @@ driver_handle_option (struct gcc_options *opts,
 #if defined(HAVE_TARGET_EXECUTABLE_SUFFIX) || defined(HAVE_TARGET_OBJECT_SUFFIX)
       arg = convert_filename (arg, ! have_c, 0);
 #endif
-      output_file = arg;
+      output_file_temp = output_file = arg;
+      /* If creating an executable, create a temp file for the output, unless
+         -o /dev/null was requested. This will later get renamed, if the linker
+         succeeds.  */
+      if (!have_c && strcmp (output_file, HOST_BIT_BUCKET) != 0)
+        {
+          output_file_temp = make_temp_file ("");
+          record_temp_file (output_file_temp, false, true);
+        }
       /* On some systems, ld cannot handle "-o" without a space.  So
 	 split the option from its argument.  */
-      save_switch ("-o", 1, &arg, validated, true);
+      save_switch ("-o", 1, &output_file_temp, validated, true);
       return true;
 
     case OPT_pie:
@@ -9267,22 +9280,30 @@ driver::maybe_run_linker (const char *argv0) const
       linker_was_run = (tmp != execution_count);
     }
 
-  /* If options said don't run linker,
-     complain about input files to be given to the linker.  */
-
-  if (! linker_was_run && !seen_error ())
-    for (i = 0; (int) i < n_infiles; i++)
-      if (explicit_link_files[i]
-	  && !(infiles[i].language && infiles[i].language[0] == '*'))
+  if (!seen_error ())
+    {
+      if (linker_was_run)
+	/* If the linker finished without errors, rename the output from the
+	   temporary file to the real output name.  */
+	rename (output_file_temp, output_file);
+      else
 	{
-	  warning (0, "%s: linker input file unused because linking not done",
-		   outfiles[i]);
-	  if (access (outfiles[i], F_OK) < 0)
-	    /* This is can be an indication the user specifed an errorneous
-	       separated option value, (or used the wrong prefix for an
-	       option).  */
-	    error ("%s: linker input file not found: %m", outfiles[i]);
+	  /* If options said don't run linker,
+	     complain about input files to be given to the linker.  */
+	  for (i = 0; (int) i < n_infiles; i++)
+	    if (explicit_link_files[i]
+		&& !(infiles[i].language && infiles[i].language[0] == '*'))
+	      {
+		warning (0, "%s: linker input file unused because linking not done",
+			 outfiles[i]);
+		if (access (outfiles[i], F_OK) < 0)
+		  /* This is can be an indication the user specifed an errorneous
+		     separated option value, (or used the wrong prefix for an
+		     option).  */
+		  error ("%s: linker input file not found: %m", outfiles[i]);
+	      }
 	}
+    }
 }
 
 /* The end of "main".  */
