@@ -395,6 +395,11 @@ lhd_print_error_function (diagnostic_context *context, const char *file,
 	  else
 	    fndecl = current_function_decl;
 
+	  // Follow DECL_ORIGIN link, in case this is a cloned function.
+	  // Otherwise, we will emit names like "foo.constprop" or "bar.isra"
+	  // in the diagnostic.
+	  fndecl = DECL_ORIGIN (fndecl);
+
 	  if (TREE_CODE (TREE_TYPE (fndecl)) == METHOD_TYPE)
 	    pp_printf
 	      (context->printer, _("In member function %qs"),
@@ -439,6 +444,7 @@ lhd_print_error_function (diagnostic_context *context, const char *file,
 		}
 	      if (fndecl)
 		{
+		  fndecl = DECL_ORIGIN (fndecl);
 		  expanded_location s = expand_location (*locus);
 		  pp_comma (context->printer);
 		  pp_newline (context->printer);
