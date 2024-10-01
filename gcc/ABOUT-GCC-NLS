@@ -1,8 +1,6 @@
 Notes on GCC's Native Language Support
 
 By and large, only diagnostic messages have been internationalized.
-Some work remains in other areas; for example, GCC does not yet allow
-non-ASCII letters in identifiers.
 
 Not all of GCC's diagnostic messages have been internationalized. Programs
 like `genattr' (in fact all gen* programs) are not internationalized, as
