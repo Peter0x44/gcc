@@ -1,3 +1,792 @@
+2025-04-04  Nathaniel Shead  <nathanieloshead@gmail.com>
+
+	PR c++/119564
+	* g++.dg/modules/gc-3_a.C: New test.
+	* g++.dg/modules/gc-3_b.C: New test.
+
+2025-04-04  Nathaniel Shead  <nathanieloshead@gmail.com>
+
+	PR c++/119608
+	* g++.dg/modules/pr119608_a.C: New test.
+	* g++.dg/modules/pr119608_b.C: New test.
+
+2025-04-04  Nathaniel Shead  <nathanieloshead@gmail.com>
+
+	PR c++/119462
+	* g++.dg/modules/noexcept-3_a.C: New test.
+	* g++.dg/modules/noexcept-3_b.C: New test.
+	* g++.dg/modules/noexcept-3_c.C: New test.
+
+2025-04-04  Bob Dubner  <rdubner@symas.com>
+
+	* cobol.dg/group2/call_subprogram_using_pointer__passing_pointer.cob: New testcase.
+	* cobol.dg/group2/FUNCTION_ABS.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_ACOS.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_ALL_INTRINSIC_simple_test.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_ANNUITY.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_as_CALL_parameter_BY_CONTENT.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_ASIN.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_ATAN.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_BIGGER-POINTER__2_.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_BIGGER-POINTER.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_BYTE-LENGTH.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_CHAR.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_COMBINED-DATETIME.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_CONCAT___CONCATENATE.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_CONCAT_with_reference_modding.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_COS.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_CURRENT-DATE.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_DATE-OF-INTEGER.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_DATE___TIME_OMNIBUS.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_DATE-TO-YYYYMMDD.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_DAY-OF-INTEGER.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_DAY-TO-YYYYDDD.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_E.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_EXCEPTION-FILE.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_EXCEPTION-STATEMENT.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_EXCEPTION-STATUS.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_EXP10.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_EXP.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_FACTORIAL.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_FORMATTED-DATE.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_FORMATTED-DATETIME.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_FORMATTED-DATE_TIME_DATETIME.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_FORMATTED-DATETIME_with_ref_modding.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_FORMATTED-DATE_with_ref_modding.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_FORMATTED-TIME_DP.COMMA.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_FORMATTED-TIME_with_ref_modding.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_FRACTION-PART.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_HEX-OF.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_HIGHEST-ALGEBRAIC.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_INTEGER.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_INTEGER-OF-DATE.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_INTEGER-OF-DAY.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_INTEGER-OF-FORMATTED-DATE.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_INTEGER-PART.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_LENGTH__1_.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_LENGTH__2_.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_LOCALE-COMPARE.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_LOCALE-DATE.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_LOCALE-TIME.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_LOCALE-TIME-FROM-SECONDS.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_LOG10.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_LOG.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_LOWER-CASE.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_LOWER-CASE_with_reference_modding.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_LOWEST-ALGEBRAIC.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_MAX.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_MEAN.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_MEDIAN.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_MIDRANGE.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_MIN.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_MOD__invalid_.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_MODULE-NAME.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_MOD__valid_.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_NUMVAL-C.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_NUMVAL-C_DP.COMMA.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_NUMVAL.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_NUMVAL-F.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_ORD.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_ORD-MAX.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_ORD-MIN.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_PI.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_PRESENT-VALUE.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_RANDOM.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_RANGE.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_REM__invalid_.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_REM__valid_.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_REVERSE.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_REVERSE_with_reference_modding.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_SECONDS-FROM-FORMATTED-TIME.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_SECONDS-PAST-MIDNIGHT.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_SIGN.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_SIN.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_SQRT.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_STANDARD-DEVIATION.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_SUBSTITUTE-CASE.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_SUBSTITUTE-CASE_with_reference_mod.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_SUBSTITUTE.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_SUBSTITUTE_with_reference_modding.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_SUM.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_TAN.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_TEST-DATE-YYYYMMDD.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_TEST-DAY-YYYYDDD__1_.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_TEST-DAY-YYYYDDD__2_.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_TEST-FORMATTED-DATETIME_additional.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_TEST-FORMATTED-DATETIME_DP.COMMA.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_TEST-FORMATTED-DATETIME_with_dates.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_TEST-FORMATTED-DATETIME_with_datetimes.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_TEST-FORMATTED-DATETIME_with_times.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_TEST-NUMVAL-C.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_TEST-NUMVAL.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_TEST-NUMVAL-F.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_TRIM.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_TRIM_with_reference_modding.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_TRIM_zero_length.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_UPPER-CASE.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_UPPER-CASE_with_reference_modding.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_VARIANCE.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_WHEN-COMPILED.cob: Likewise.
+	* cobol.dg/group2/FUNCTION_YEAR-TO-YYYY.cob: Likewise.
+	* cobol.dg/group2/Intrinsics_without_FUNCTION_keyword__2_.cob: Likewise.
+	* cobol.dg/group2/Program-to-program_parameters_and_retvals.cob: Likewise.
+	* cobol.dg/group2/Recursive_FUNCTION_with_local-storage.cob: Likewise.
+	* cobol.dg/group2/Repository_functions_clause.cob: Likewise.
+	* cobol.dg/group2/UDF_fibonacci_recursion.cob: Likewise.
+	* cobol.dg/group2/UDF_in_COMPUTE.cob: Likewise.
+	* cobol.dg/group2/UDF_RETURNING_group_and_PIC_9_5_.cob: Likewise.
+	* cobol.dg/group2/UDF_with_recursion.cob: Likewise.
+	* cobol.dg/group2/call_subprogram_using_pointer__passing_pointer.out: New known-good file.
+	* cobol.dg/group2/FUNCTION_ABS.out: Likewise.
+	* cobol.dg/group2/FUNCTION_ALL_INTRINSIC_simple_test.out: Likewise.
+	* cobol.dg/group2/FUNCTION_as_CALL_parameter_BY_CONTENT.out: Likewise.
+	* cobol.dg/group2/FUNCTION_BIGGER-POINTER__2_.out: Likewise.
+	* cobol.dg/group2/FUNCTION_BIGGER-POINTER.out: Likewise.
+	* cobol.dg/group2/FUNCTION_BYTE-LENGTH.out: Likewise.
+	* cobol.dg/group2/FUNCTION_EXCEPTION-FILE.out: Likewise.
+	* cobol.dg/group2/FUNCTION_EXCEPTION-STATEMENT.out: Likewise.
+	* cobol.dg/group2/FUNCTION_EXCEPTION-STATUS.out: Likewise.
+	* cobol.dg/group2/FUNCTION_FORMATTED-DATE_TIME_DATETIME.out: Likewise.
+	* cobol.dg/group2/FUNCTION_HEX-OF.out: Likewise.
+	* cobol.dg/group2/FUNCTION_LENGTH__2_.out: Likewise.
+	* cobol.dg/group2/FUNCTION_LOCALE-DATE.out: Likewise.
+	* cobol.dg/group2/FUNCTION_LOCALE-TIME-FROM-SECONDS.out: Likewise.
+	* cobol.dg/group2/FUNCTION_LOCALE-TIME.out: Likewise.
+	* cobol.dg/group2/FUNCTION_MAX.out: Likewise.
+	* cobol.dg/group2/FUNCTION_MEAN.out: Likewise.
+	* cobol.dg/group2/FUNCTION_MEDIAN.out: Likewise.
+	* cobol.dg/group2/FUNCTION_MIDRANGE.out: Likewise.
+	* cobol.dg/group2/FUNCTION_MIN.out: Likewise.
+	* cobol.dg/group2/FUNCTION_MODULE-NAME.out: Likewise.
+	* cobol.dg/group2/FUNCTION_NUMVAL-F.out: Likewise.
+	* cobol.dg/group2/FUNCTION_ORD-MAX.out: Likewise.
+	* cobol.dg/group2/FUNCTION_ORD-MIN.out: Likewise.
+	* cobol.dg/group2/FUNCTION_ORD.out: Likewise.
+	* cobol.dg/group2/FUNCTION_PRESENT-VALUE.out: Likewise.
+	* cobol.dg/group2/FUNCTION_SUBSTITUTE.out: Likewise.
+	* cobol.dg/group2/FUNCTION_TEST-DATE-YYYYMMDD.out: Likewise.
+	* cobol.dg/group2/FUNCTION_TEST-DAY-YYYYDDD__1_.out: Likewise.
+	* cobol.dg/group2/FUNCTION_TRIM.out: Likewise.
+	* cobol.dg/group2/FUNCTION_TRIM_with_reference_modding.out: Likewise.
+	* cobol.dg/group2/FUNCTION_TRIM_zero_length.out: Likewise.
+	* cobol.dg/group2/Program-to-program_parameters_and_retvals.out: Likewise.
+	* cobol.dg/group2/Recursive_FUNCTION_with_local-storage.out: Likewise.
+	* cobol.dg/group2/Repository_functions_clause.out: Likewise.
+	* cobol.dg/group2/UDF_fibonacci_recursion.out: Likewise.
+	* cobol.dg/group2/UDF_in_COMPUTE.out: Likewise.
+	* cobol.dg/group2/UDF_RETURNING_group_and_PIC_9_5_.out: Likewise.
+	* cobol.dg/group2/UDF_with_recursion.out: Likewise.
+
+2025-04-04  Jason Merrill  <jason@redhat.com>
+
+	PR c++/99546
+	PR c++/113925
+	PR c++/106976
+	PR c++/109961
+	PR c++/117336
+	* g++.dg/cpp2a/lambda-requires2.C: New test.
+	* g++.dg/cpp2a/lambda-requires3.C: New test.
+	* g++.dg/cpp2a/lambda-requires4.C: New test.
+	* g++.dg/cpp2a/lambda-requires5.C: New test.
+
+2025-04-04  Jakub Jelinek  <jakub@redhat.com>
+
+	PR gcov-profile/119618
+	* c-c++-common/pr119618.c: New test.
+
+2025-04-04  Jakub Jelinek  <jakub@redhat.com>
+
+	PR tree-optimization/119616
+	* c-c++-common/pr119616.c: New test.
+
+2025-04-04  Jakub Jelinek  <jakub@redhat.com>
+
+	PR middle-end/119613
+	* g++.dg/opt/pr119613.C: New test.
+
+2025-04-04  Jakub Jelinek  <jakub@redhat.com>
+
+	PR target/115910
+	* gcc.target/i386/pr115910.c: New test.
+
+2025-04-04  Patrick Palka  <ppalka@redhat.com>
+
+	PR c++/117849
+	* g++.dg/cpp2a/concepts-requires41.C: New test.
+
+2025-04-04  Andrew Pinski  <quic_apinski@quicinc.com>
+
+	PR ipa/119599
+	* gcc.dg/torture/pr119599-1.c: New test.
+	* gcc.dg/builtin-apply5.c: New test.
+
+2025-04-04  Jakub Jelinek  <jakub@redhat.com>
+
+	PR preprocessor/119391
+	* g++.dg/cpp/pr119391.C: New test.
+
+2025-04-04  Richard Earnshaw  <rearnsha@arm.com>
+
+	* gcc.target/arm/mve/mve.exp: Save dg-do-what-default before
+	changing it.  Restore it once done.
+
+2025-04-04  Jakub Jelinek  <jakub@redhat.com>
+
+	PR tree-optimization/119614
+	* c-c++-common/pr119614-1.c: New test.
+	* c-c++-common/pr119614-2.c: New test.
+	* c-c++-common/pr119614-3.c: New test.
+
+2025-04-03  Thomas Schwinge  <tschwinge@baylibre.com>
+
+	PR target/119573
+	* gcc.c-torture/compile/pr46534.c: Don't 'dg-skip-if' nvptx.
+	* gcc.target/nvptx/decl.c: Adjust.
+
+2025-04-03  Jason Merrill  <jason@redhat.com>
+
+	* g++.dg/cpp2a/spaceship-rewrite6.C: New test.
+
+2025-04-03  Victor Do Nascimento  <victor.donascimento@arm.com>
+
+	PR testsuite/118597
+	* gcc.dg/vect/vect-fncall-mask.c: Update test directives.
+
+2025-04-03  Bob Dubner  <rdubner@symas.com>
+
+	* cobol.dg/group2/INSPECT_BACKWARD_REPLACING_LEADING.cob: New testcase.
+	* cobol.dg/group2/INSPECT_BACKWARD_REPLACING_TRAILING.cob: Likewise.
+	* cobol.dg/group2/INSPECT_BACKWARD_simple_CONVERTING.cob: Likewise.
+	* cobol.dg/group2/INSPECT_BACKWARD_simple_REPLACING.cob: Likewise.
+	* cobol.dg/group2/INSPECT_BACKWARD_simple_TALLYING.cob: Likewise.
+	* cobol.dg/group2/INSPECT_CONVERTING_NULL.cob: Likewise.
+	* cobol.dg/group2/INSPECT_CONVERTING_TO_figurative_constant.cob: Likewise.
+	* cobol.dg/group2/INSPECT_CONVERTING_TO_figurative_constants.cob: Likewise.
+	* cobol.dg/group2/INSPECT_ISO_Example_1.cob: Likewise.
+	* cobol.dg/group2/INSPECT_ISO_Example_2.cob: Likewise.
+	* cobol.dg/group2/INSPECT_ISO_Example_3.cob: Likewise.
+	* cobol.dg/group2/INSPECT_ISO_Example_4.cob: Likewise.
+	* cobol.dg/group2/INSPECT_ISO_Example_5.cob: Likewise.
+	* cobol.dg/group2/INSPECT_ISO_Example_5-f.cob: Likewise.
+	* cobol.dg/group2/INSPECT_ISO_Example_5-r.cob: Likewise.
+	* cobol.dg/group2/INSPECT_ISO_Example_6.cob: Likewise.
+	* cobol.dg/group2/INSPECT_ISO_Example_7.cob: Likewise.
+	* cobol.dg/group2/INSPECT_No_repeat_conversion_check.cob: Likewise.
+	* cobol.dg/group2/INSPECT_REPLACING_figurative_constant.cob: Likewise.
+	* cobol.dg/group2/INSPECT_REPLACING_LEADING_ZEROS_BY_SPACES.cob: Likewise.
+	* cobol.dg/group2/INSPECT_TALLYING_AFTER.cob: Likewise.
+	* cobol.dg/group2/INSPECT_TALLYING_BEFORE.cob: Likewise.
+	* cobol.dg/group2/INSPECT_TALLYING_REPLACING_ISO_Example.cob: Likewise.
+	* cobol.dg/group2/INSPECT_TRAILING.cob: Likewise.
+	* cobol.dg/group2/INSPECT_BACKWARD_REPLACING_LEADING.out: New known-good result.
+	* cobol.dg/group2/INSPECT_BACKWARD_REPLACING_TRAILING.out: Likewise.
+	* cobol.dg/group2/INSPECT_BACKWARD_simple_CONVERTING.out: Likewise.
+	* cobol.dg/group2/INSPECT_BACKWARD_simple_REPLACING.out: Likewise.
+	* cobol.dg/group2/INSPECT_BACKWARD_simple_TALLYING.out: Likewise.
+	* cobol.dg/group2/INSPECT_CONVERTING_TO_figurative_constants.out: Likewise.
+	* cobol.dg/group2/INSPECT_ISO_Example_1.out: Likewise.
+	* cobol.dg/group2/INSPECT_ISO_Example_2.out: Likewise.
+	* cobol.dg/group2/INSPECT_ISO_Example_3.out: Likewise.
+	* cobol.dg/group2/INSPECT_ISO_Example_4.out: Likewise.
+	* cobol.dg/group2/INSPECT_ISO_Example_5-f.out: Likewise.
+	* cobol.dg/group2/INSPECT_ISO_Example_5.out: Likewise.
+	* cobol.dg/group2/INSPECT_ISO_Example_5-r.out: Likewise.
+	* cobol.dg/group2/INSPECT_ISO_Example_6.out: Likewise.
+	* cobol.dg/group2/INSPECT_ISO_Example_7.out: Likewise.
+	* cobol.dg/group2/INSPECT_TALLYING_REPLACING_ISO_Example.out: Likewise.
+	* cobol.dg/group2/INSPECT_TRAILING.out: Likewise.
+
+2025-04-03  Andrew Pinski  <quic_apinski@quicinc.com>
+	    Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/119563
+	* g++.dg/cpp0x/pr119563.C: New test.
+	* g++.dg/cpp/embed-26.C: New test.
+
+2025-04-03  Christophe Lyon  <christophe.lyon@linaro.org>
+
+	* gcc.dg/guality/pr90074.c: Remove xfail for aarch64.
+	* gcc.dg/guality/pr90716.c: Likewise.
+
+2025-04-03  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* gcc.target/i386/pr111673.c (dg-options): Add
+	-fasynchronous-unwind-tables -fdwarf2-cfi-asm.
+	* gcc.target/i386/pr82142a.c: Likewise.
+	* gcc.target/i386/pr82142b.c (dg-options): Add -mno-stackrealign
+	-fasynchronous-unwind-tables -fdwarf2-cfi-asm.
+
+2025-04-03  Alexandre Oliva  <oliva@adacore.com>
+
+	* gcc.target/riscv/rvv/base/vwaddsub-1.c: Require rv64.
+
+2025-04-03  Alexandre Oliva  <oliva@adacore.com>
+
+	* gcc.target/riscv/mcpu-xiangshan-nanhu.c: Skip on non-rv64.
+
+2025-04-03  Alexandre Oliva  <oliva@adacore.com>
+
+	PR tree-optimization/113281
+	* gcc.dg/vect/costmodel/riscv/rvv/pr113281-1.c: XFAIL.
+	* gcc.dg/vect/costmodel/riscv/rvv/pr113281-2.c: Likewise.
+	* gcc.dg/vect/costmodel/riscv/rvv/pr113281-5.c: Likewise.
+
+2025-04-03  Alexandre Oliva  <oliva@adacore.com>
+
+	* gcc.dg/tree-ssa/ssa-dom-cse-2.c: XFAIL on riscv lp64.
+
+2025-04-03  Hongyu Wang  <hongyu.wang@intel.com>
+
+	PR target/119539
+	* gcc.target/i386/apx-nf-pr119539.c: New test.
+
+2025-04-02  Jin Ma  <jinma@linux.alibaba.com>
+
+	* gcc.target/riscv/zba-shNadd-09.c: New test.
+	* gcc.target/riscv/zba-shNadd-10.c: New test.
+
+2025-04-02  John David Anglin  <danglin@gcc.gnu.org>
+
+	* g++.dg/modules/pr98893_b.C: xfail __tcf_ZL1b
+	assembler check on hppa*-*-hpux*.
+
+2025-04-02  John David Anglin  <danglin@gcc.gnu.org>
+
+	* g++.dg/abi/abi-tag18a.C: Skip on hppa*-*-hpux*.
+
+2025-04-02  Jakub Jelinek  <jakub@redhat.com>
+
+	PR tree-optimization/119491
+	* g++.dg/opt/musttail3.C: New test.
+	* g++.dg/opt/musttail4.C: New test.
+	* g++.dg/opt/musttail5.C: New test.
+
+2025-04-02  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c/119582
+	* gcc.dg/asan/pr119582.c: New test.
+
+2025-04-02  Sandra Loosemore  <sloosemore@baylibre.com>
+
+	PR middle-end/118965
+	* c-c++-common/gomp/append-args-1.c: Add target/targetsync
+	modifiers so tests do what they were previously supposed to do.
+	Adjust expected output.
+	* c-c++-common/gomp/append-args-7.c: Likewise.
+	* c-c++-common/gomp/append-args-8.c: Likewise.
+	* c-c++-common/gomp/append-args-9.c: Likewise.
+	* c-c++-common/gomp/interop-1.c: Likewise.
+	* c-c++-common/gomp/interop-2.c: Likewise.
+	* c-c++-common/gomp/interop-3.c: Likewise.
+	* c-c++-common/gomp/interop-4.c: Likewise.
+	* c-c++-common/gomp/pr118965-1.c: New.
+	* c-c++-common/gomp/pr118965-2.c: New.
+	* g++.dg/gomp/append-args-1.C: Add target/targetsync modifiers
+	and adjust expected output.
+	* g++.dg/gomp/append-args-2.C: Likewise.
+	* g++.dg/gomp/append-args-6.C: Likewise.
+	* g++.dg/gomp/append-args-7.C: Likewise.
+	* g++.dg/gomp/append-args-8.C: Likewise.
+	* g++.dg/gomp/interop-5.C: Likewise.
+	* gfortran.dg/gomp/append_args-1.f90: Add target/targetsync
+	modifiers and adjust expected output.
+	* gfortran.dg/gomp/append_args-2.f90: Likewise.
+	* gfortran.dg/gomp/append_args-3.f90: Likewise.
+	* gfortran.dg/gomp/append_args-4.f90: Likewise.
+	* gfortran.dg/gomp/interop-1.f90: Likewise.
+	* gfortran.dg/gomp/interop-2.f90: Likewise.
+	* gfortran.dg/gomp/interop-3.f90: Likewise.
+	* gfortran.dg/gomp/interop-4.f90: Likewise.
+	* gfortran.dg/gomp/pr118965-1.f90: New.
+	* gfortran.dg/gomp/pr118965-2.f90: New.
+
+2025-04-02  Richard Biener  <rguenther@suse.de>
+
+	PR tree-optimization/119586
+	* gcc.dg/vect/pr119586.c: New testcase.
+
+2025-04-02  Jonathan Yong  <10walls@gmail.com>
+
+	* gcc.dg/analyzer/torture/switch-3.c: Fix llp64 warnings.
+
+2025-04-02  Jakub Jelinek  <jakub@redhat.com>
+
+	PR ipa/119376
+	* c-c++-common/musttail8.c: Expect a warning rather than error in one
+	case.
+	(f4): Add int * argument.
+	* c-c++-common/musttail15.c: Don't disallow for C++98.
+	* c-c++-common/musttail16.c: Likewise.
+	* c-c++-common/musttail17.c: Likewise.
+	* c-c++-common/musttail18.c: Likewise.
+	* c-c++-common/musttail19.c: Likewise.  Expect a warning rather than
+	error in one case.
+	(f4): Add int * argument.
+	* c-c++-common/musttail20.c: Don't disallow for C++98.
+	* c-c++-common/musttail21.c: Likewise.
+	* c-c++-common/musttail28.c: New test.
+	* c-c++-common/musttail29.c: New test.
+	* c-c++-common/musttail30.c: New test.
+	* c-c++-common/musttail31.c: New test.
+	* g++.dg/ext/musttail1.C: New test.
+	* g++.dg/ext/musttail2.C: New test.
+	* g++.dg/ext/musttail3.C: New test.
+
+2025-04-02  Christophe Lyon  <christophe.lyon@linaro.org>
+
+	PR target/119556
+	* gcc.target/arm/short-vfp-1.c: Add missing spaces.
+
+2025-04-01  Nathaniel Shead  <nathanieloshead@gmail.com>
+
+	PR c++/119551
+	* g++.dg/modules/internal-5_a.C: Add cases that should be
+	ignored.
+	* g++.dg/modules/internal-5_b.C: Test these new cases, and make
+	the testcase more robust.
+	* g++.dg/modules/internal-11.C: New test.
+	* g++.dg/modules/internal-12_a.C: New test.
+	* g++.dg/modules/internal-12_b.C: New test.
+
+2025-04-01  Jakub Jelinek  <jakub@redhat.com>
+
+	PR tree-optimization/119493
+	* gcc.dg/pr119493-1.c: New test.
+
+2025-04-01  Jakub Jelinek  <jakub@redhat.com>
+
+	PR rtl-optimization/119291
+	* gcc.c-torture/execute/pr119291.c: New test.
+
+2025-04-01  Kito Cheng  <kito.cheng@sifive.com>
+
+	* gcc.target/riscv/rv32i_zcmp.c: Tweak testcase for PIE.
+	* gcc.target/riscv/rv32e_zcmp.c: Likewise.
+	* gcc.target/riscv/zcmp_stack_alignment.c: Likewise.
+	* gcc.target/riscv/cm_mv_rv32.c: Likewise.
+	* gcc.target/riscv/cpymem-64.c: Likewise.
+	* gcc.target/riscv/fmax-snan.c: Likewise.
+	* gcc.target/riscv/fmaxf-snan.c: Likewise.
+	* gcc.target/riscv/fmin-snan.c: Likewise.
+	* gcc.target/riscv/fminf-snan.c: Likewise.
+	* gcc.target/riscv/large-model.c: Likewise.
+	* gcc.target/riscv/predef-1.c: Likewise.
+	* gcc.target/riscv/predef-4.c: Likewise.
+	* gcc.target/riscv/predef-7.c: Likewise.
+	* gcc.target/riscv/predef-9.c: Likewise.
+	* gcc.target/riscv/rvv/base/abi-callee-saved-2-save-restore.c: Likewise.
+	* gcc.target/riscv/rvv/base/abi-callee-saved-2-zcmp.c: Likewise.
+	* gcc.target/riscv/rvv/base/abi-callee-saved-2.c: Likewise.
+	* gcc.target/riscv/rvv/base/cmpmem-1.c: Likewise.
+	* gcc.target/riscv/rvv/base/cmpmem-3.c: Likewise.
+	* gcc.target/riscv/rvv/base/cmpmem-4.c: Likewise.
+	* gcc.target/riscv/rvv/base/cpymem-1.c: Likewise.
+	* gcc.target/riscv/rvv/base/movmem-1.c: Likewise.
+	* gcc.target/riscv/rvv/base/pr114352-3.c: Likewise.
+	* gcc.target/riscv/rvv/base/setmem-1.c: Likewise.
+	* gcc.target/riscv/rvv/base/setmem-2.c: Likewise.
+	* gcc.target/riscv/rvv/base/setmem-3.c: Likewise.
+	* gcc.target/riscv/rvv/base/spill-9.c: Likewise.
+	* g++.target/riscv/mv-symbols1.C: Likewise.
+	* g++.target/riscv/mv-symbols3.C: Likewise.
+	* g++.target/riscv/mv-symbols4.C: Likewise.
+	* g++.target/riscv/mv-symbols5.C: Likewise.
+	* g++.target/riscv/mvc-symbols1.C: Likewise.
+	* g++.target/riscv/mvc-symbols3.C: Likewise.
+
+2025-04-01  Richard Biener  <rguenther@suse.de>
+
+	PR tree-optimization/119534
+	* gcc.dg/vect/pr119534.c: New testcase.
+
+2025-04-01  Marek Polacek  <polacek@redhat.com>
+
+	PR c++/119383
+	* g++.dg/cpp0x/temp-extend3.C: New test.
+
+2025-04-01  Jakub Jelinek  <jakub@redhat.com>
+
+	PR gcov-profile/119535
+	* c-c++-common/pr119535.c: New test.
+
+2025-04-01  Jakub Jelinek  <jakub@redhat.com>
+
+	PR tree-optimization/119493
+	* gcc.dg/pr119493-2.c: New test.
+
+2025-04-01  Jakub Jelinek  <jakub@redhat.com>
+
+	PR middle-end/119537
+	* c-c++-common/pr119537-1.c: New test.
+	* c-c++-common/pr119537-2.c: New test.
+
+2025-04-01  Thomas Schwinge  <tschwinge@baylibre.com>
+
+	PR target/119369
+	* g++.dg/abi/pure-virtual1.C: 'dg-xfail-if' GCN.
+	* g++.dg/cpp0x/pr84497.C: 'dg-skip-if' GCN.
+	* g++.dg/ext/weak2.C: Likewise.
+	* gcc.dg/attr-weakref-1.c: Likewise.
+	* gcc.dg/weak/weak-1.c: Likewise.
+	* gcc.dg/weak/weak-12.c: Likewise.
+	* gcc.dg/weak/weak-15.c: Likewise.
+	* gcc.dg/weak/weak-16.c: Likewise.
+	* gcc.dg/weak/weak-2.c: Likewise.
+	* gcc.dg/weak/weak-3.c: Likewise.
+	* gcc.dg/weak/weak-4.c: Likewise.
+	* gcc.dg/weak/weak-5.c: Likewise.
+
+2025-04-01  Richard Biener  <rguenther@suse.de>
+
+	PR target/119549
+	* gcc.target/i386/pr119549.c: New testcase.
+
+2025-04-01  Liao Shihua  <shihua@iscas.ac.cn>
+
+	* gcc.target/riscv/cmo-zicbop-1.c: Fix missing { before target .
+	* gcc.target/riscv/cmo-zicbop-2.c: Likewise.
+	* gcc.target/riscv/prefetch-zicbop.c:Likewise.
+	* gcc.target/riscv/prefetch-zihintntl.c:Likewise.
+
+2025-04-01  Hu, Lin1  <lin1.hu@intel.com>
+	    Hongyu Wang  <hongyu.wang@intel.com>
+
+	PR target/119473
+	* gcc.target/i386/pr119473.c: New test.
+
+2025-04-01  Monk Chiang  <monk.chiang@sifive.com>
+	    Kito Cheng  <kito.cheng@sifive.com>
+
+	* gcc.target/riscv/rvv/autovec/pr111391-2.c: Update test.
+	* gcc.target/riscv/rvv/base/abi-14.c: Update test.
+	* gcc.target/riscv/rvv/base/abi-16.c: Update test.
+	* gcc.target/riscv/rvv/base/abi-18.c: Update test.
+	* gcc.target/riscv/rvv/base/vsetvl_zve32-1.c: New test.
+	* gcc.target/riscv/rvv/base/vsetvl_zve32-2.c: New test.
+
+2025-03-31  Philip Herron  <herron.philip@googlemail.com>
+
+	* rust/compile/issue-3613.rs: New test.
+
+2025-03-31  Philip Herron  <herron.philip@googlemail.com>
+
+	* rust/compile/issue-3606.rs: New test.
+
+2025-03-31  Philip Herron  <herron.philip@googlemail.com>
+
+	* rust/compile/issue-3605.rs: New test.
+
+2025-03-31  Philip Herron  <herron.philip@googlemail.com>
+
+	* rust/compile/issue-3614.rs: New test.
+
+2025-03-31  Philip Herron  <herron.philip@googlemail.com>
+
+	* rust/compile/issue-3615.rs: New test.
+
+2025-03-31  Philip Herron  <herron.philip@googlemail.com>
+
+	* rust/compile/issue-3563.rs: New test.
+
+2025-03-31  Owen Avery  <powerboat9.gamer@gmail.com>
+
+	* rust/compile/macros/mbe/macro43.rs: Adjust test to pass with
+	name resolution 2.0.
+	* rust/compile/nr2/exclude: Remove macros/mbe/macro43.rs.
+
+2025-03-31  Philip Herron  <herron.philip@googlemail.com>
+
+	* rust/compile/issue-3588.rs: New test.
+
+2025-03-31  Philip Herron  <herron.philip@googlemail.com>
+
+	* rust/compile/issue-3552.rs: New test.
+
+2025-03-31  Pierre-Emmanuel Patry  <pierre-emmanuel.patry@embecosm.com>
+
+	* rust/compile/self_import_namespace.rs: New test.
+
+2025-03-31  Pierre-Emmanuel Patry  <pierre-emmanuel.patry@embecosm.com>
+
+	* rust/compile/nr2/exclude: Remove now passing tests from exclusion
+	list.
+
+2025-03-31  Philip Herron  <herron.philip@googlemail.com>
+
+	* rust/compile/issue-3554-1.rs: New test.
+	* rust/compile/issue-3554-2.rs: New test.
+
+2025-03-31  Philip Herron  <herron.philip@googlemail.com>
+
+	* rust/compile/nr2/exclude: nr2 puts out a different error multiple times
+	* rust/compile/issue-3568.rs: New test.
+
+2025-03-31  Philip Herron  <herron.philip@googlemail.com>
+
+	* rust/compile/issue-3566-1.rs: New test.
+	* rust/compile/issue-3566-2.rs: New test.
+
+2025-03-31  Philip Herron  <herron.philip@googlemail.com>
+
+	* rust/compile/issue-3553.rs: New test.
+
+2025-03-31  Philip Herron  <herron.philip@googlemail.com>
+
+	* rust/compile/issue-3567.rs: New test.
+
+2025-03-31  Pierre-Emmanuel Patry  <pierre-emmanuel.patry@embecosm.com>
+
+	* rust/compile/issue-2905-2.rs: Import from core library into a single
+	file misses the crate directives.
+
+2025-03-31  Philip Herron  <herron.philip@googlemail.com>
+
+	* rust/compile/issue-3242.rs: no longer skip the test
+
+2025-03-31  Owen Avery  <powerboat9.gamer@gmail.com>
+
+	* rust/compile/issue-3541-1.rs: New test.
+	* rust/compile/issue-3541-2.rs: Likewise.
+
+2025-03-31  Arthur Cohen  <arthur.cohen@embecosm.com>
+
+	* rust/compile/cfg-core1.rs: New test.
+	* rust/compile/cfg-core2.rs: New test.
+
+2025-03-31  Owen Avery  <powerboat9.gamer@gmail.com>
+
+	* rust/compile/issue-3549.rs: New test.
+
+2025-03-31  Owen Avery  <powerboat9.gamer@gmail.com>
+
+	* rust/compile/const_generics_3.rs: Modify test to run with name
+	resolution 2.0 only and to handle the absence of a bogus
+	resolution error.
+	* rust/compile/nr2/exclude: Remove const_generics_3.rs.
+
+2025-03-31  Pierre-Emmanuel Patry  <pierre-emmanuel.patry@embecosm.com>
+
+	* rust/compile/nr2/exclude: Remove test from exclusion list.
+
+2025-03-31  Pierre-Emmanuel Patry  <pierre-emmanuel.patry@embecosm.com>
+
+	* rust/compile/issue-2330.rs: Use complete path from crate root.
+	* rust/compile/issue-1901.rs: Likewise.
+	* rust/compile/issue-1981.rs: Likewise.
+	* rust/compile/iterators1.rs: Likewise.
+	* rust/compile/sizeof-stray-infer-var-bug.rs: Likewise.
+	* rust/compile/for-loop1.rs: Likewise.
+	* rust/compile/for-loop2.rs: Likewise.
+	* rust/compile/torture/builtin_abort.rs: Likewise.
+	* rust/compile/torture/uninit-intrinsic-1.rs: Likewise.
+
+2025-03-31  Pierre-Emmanuel Patry  <pierre-emmanuel.patry@embecosm.com>
+
+	* rust/compile/feature_rust_attri0.rs: Add extern
+	function declaration and change name to printf.
+	* rust/compile/nr2/exclude: Remove now passing test from exclusion
+	list.
+
+2025-03-31  Iain Buclaw  <ibuclaw@gdcproject.org>
+
+	PR d/117002
+	* gdc.dg/torture/pr117002.d: New test.
+
+2025-03-31  Marek Polacek  <polacek@redhat.com>
+
+	PR c++/116960
+	PR c++/119303
+	* g++.dg/cpp2a/lambda-uneval26.C: New test.
+	* g++.dg/warn/undefined2.C: New test.
+
+2025-03-31  Andre Simoes Dias Vieira  <andre.simoesdiasvieira@arm.com>
+
+	* gcc.target/aarch64/no-sve-with-sme-1.c: New.
+	* gcc.target/aarch64/no-sve-with-sme-2.c: New.
+	* gcc.target/aarch64/no-sve-with-sme-3.c: New.
+	* gcc.target/aarch64/no-sve-with-sme-4.c: New.
+	* gcc.target/aarch64/pragma_cpp_predefs_4.c: Pass +sve2 to existing
+	+sme pragma.
+	* gcc.target/aarch64/sve/acle/general-c/binary_int_opt_single_n_2.c:
+	Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/binary_opt_single_n_2.c:
+	Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/binary_single_1.c: Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/binary_za_slice_int_opt_single_1.c:
+	* gcc.target/aarch64/sve/acle/general-c/binary_za_slice_lane_1.c:
+	Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/binary_za_slice_lane_2.c:
+	Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/binary_za_slice_lane_3.c:
+	Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/binary_za_slice_lane_4.c:
+	Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/binary_za_slice_opt_single_1.c:
+	Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/binary_za_slice_opt_single_2.c:
+	Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/binary_za_slice_opt_single_3.c:
+	Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/binary_za_slice_uint_opt_single_1.c:
+	Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/binaryxn_2.c: Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/clamp_1.c: Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/compare_scalar_count_1.c:
+	Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/dot_za_slice_int_lane_1.c:
+	Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/dot_za_slice_lane_1.c:
+	Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/dot_za_slice_lane_2.c:
+	Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/dot_za_slice_uint_lane_1.c:
+	Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/shift_right_imm_narrowxn_1.c:
+	Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/storexn_1.c: Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/ternary_mfloat8_lane_1.c:
+	Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/ternary_mfloat8_lane_group_selection_1.c:
+	Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/ternary_qq_or_011_lane_1.c:
+	Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/unary_convertxn_1.c: Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/unary_convertxn_narrow_1.c:
+	Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/unary_convertxn_narrowt_1.c:
+	Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/unary_za_slice_1.c: Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/unaryxn_1.c: Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/write_za_1.c: Likewise.
+	* gcc.target/aarch64/sve/acle/general-c/write_za_slice_1.c: Likewise.
+
+2025-03-31  Jason Merrill  <jason@redhat.com>
+
+	PR c++/119401
+	* g++.dg/cpp2a/lambda-targ11.C: New test.
+	* g++.dg/cpp2a/lambda-targ12.C: New file.
+
+2025-03-31  Richard Biener  <rguenther@suse.de>
+
+	PR tree-optimization/119532
+	* gcc.dg/torture/pr119532.c: New testcase.
+
+2025-03-31  Richard Earnshaw  <rearnsha@arm.com>
+
+	* gcc.target/arm/vect-fmaxmin-2.c: New compile test.  Split from ...
+	* gcc.target/arm/vect-fmaxmin.c: ... here.  Remove scan-assembler
+	subtests.  For both, add -funsafe-math-optimizations.
+
+2025-03-31  Kyrylo Tkachov  <ktkachov@nvidia.com>
+
+	PR middle-end/119442
+	* gcc.target/aarch64/vls_sve_vec_dup_1.c: New test.
+
+2025-03-31  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/119518
+	* g++.dg/opt/pr119518.C: New test.
+
 2025-03-30  Jan Hubicka  <hubicka@ucw.cz>
 
 	* g++.dg/tree-ssa/pr80331.C: New test.

@@ -3933,25 +3933,9 @@ modify_call_for_omp_dispatch (tree expr, tree dispatch_clauses,
      the split between early/late resolution, etc instead of the code
      as written by the user.  */
   if (dispatch_interop)
-    {
-      for (tree t = dispatch_interop; t; t = TREE_CHAIN (t))
-	if (OMP_CLAUSE_CODE (t) == OMP_CLAUSE_INTEROP)
-	  ninterop++;
-      if (nappend < ninterop)
-	{
-	  error_at (OMP_CLAUSE_LOCATION (dispatch_interop),
-		    "number of list items in %<interop%> clause (%d) "
-		    "exceeds the number of %<append_args%> items (%d) for "
-		    "%<declare variant%> candidate %qD",
-		    ninterop, nappend, fndecl);
-	  inform (dispatch_append_args
-		  ? EXPR_LOCATION (TREE_PURPOSE (dispatch_append_args))
-		  : DECL_SOURCE_LOCATION (fndecl),
-		  "%<declare variant%> candidate %qD declared here",
-		  fndecl);
-	  ninterop = nappend;
-	}
-    }
+    for (tree t = dispatch_interop; t; t = TREE_CHAIN (t))
+      if (OMP_CLAUSE_CODE (t) == OMP_CLAUSE_INTEROP)
+	ninterop++;
   if (dispatch_interop && !dispatch_device_num)
     {
       gcc_checking_assert (ninterop > 1);
@@ -3959,7 +3943,19 @@ modify_call_for_omp_dispatch (tree expr, tree dispatch_clauses,
 		"the %<device%> clause must be present if the %<interop%> "
 		"clause has more than one list item");
     }
-  else if (dispatch_append_args)
+  if (nappend < ninterop)
+    {
+      error_at (OMP_CLAUSE_LOCATION (dispatch_interop),
+		"number of list items in %<interop%> clause (%d) "
+		"exceeds the number of %<append_args%> items (%d) for "
+		"%<declare variant%> candidate %qD", ninterop, nappend, fndecl);
+      inform (dispatch_append_args
+	      ? EXPR_LOCATION (TREE_PURPOSE (dispatch_append_args))
+	      : DECL_SOURCE_LOCATION (fndecl),
+	      "%<declare variant%> candidate %qD declared here", fndecl);
+      ninterop = nappend;
+    }
+  if (dispatch_append_args)
     {
       tree *buffer = XALLOCAVEC (tree, nargs + nappend);
       tree arg = TYPE_ARG_TYPES (TREE_TYPE (fndecl));
@@ -4508,6 +4504,21 @@ gimplify_variant_call_expr (tree expr, fallback_t fallback,
 }
 
 
+/* Helper function for gimplify_call_expr, called via walk_tree.
+   Find used user labels.  */
+
+static tree
+find_used_user_labels (tree *tp, int *, void *)
+{
+  if (TREE_CODE (*tp) == LABEL_EXPR
+      && !DECL_ARTIFICIAL (LABEL_EXPR_LABEL (*tp))
+      && DECL_NAME (LABEL_EXPR_LABEL (*tp))
+      && TREE_USED (LABEL_EXPR_LABEL (*tp)))
+    return *tp;
+  return NULL_TREE;
+}
+
+
 /* Gimplify the CALL_EXPR node *EXPR_P into the GIMPLE sequence PRE_P.
    WANT_VALUE is true if the result of the call is desired.  */
 
@@ -4568,8 +4579,14 @@ gimplify_call_expr (tree *expr_p, gimple_seq *pre_p, fallback_t fallback)
 						   fndecl, 0));
 		  return GS_OK;
 		}
-	      /* If not optimizing, ignore the assumptions.  */
-	      if (!optimize || seen_error ())
+	      /* If not optimizing, ignore the assumptions unless there
+		 are used user labels in it.  */
+	      if ((!optimize
+		   && !walk_tree_without_duplicates (&CALL_EXPR_ARG (*expr_p,
+								     0),
+						     find_used_user_labels,
+						     NULL))
+		  || seen_error ())
 		{
 		  *expr_p = NULL_TREE;
 		  return GS_ALL_DONE;

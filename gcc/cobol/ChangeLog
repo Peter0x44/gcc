@@ -1,3 +1,51 @@
+2025-04-04  Bob Dubner  <rdubner@symas.com>
+
+	* cobol1.cc: Eliminate cobol_langhook_post_options.
+	* symbols.cc: Definition of RETURN-CODE special register sets
+	::attr member to signable_e.
+
+2025-04-04  Bob Dubner  <rdubner@symas.com>
+
+	* cobol1.cc: (cobol_langhook_post_options): Implemented in order to set
+	flag_strict_aliasing to zero.
+	* genapi.cc: (set_user_status): Add comment.
+	(parser_intrinsic_subst): Expand SHOW_PARSE information.
+	(psa_global): Change names of return-code and upsi globals,
+	(psa_FldLiteralA): Set DECL_PRESERVE_P for FldLiteralA.
+	* gengen.cc: (show_type): Add POINTER type.
+	(gg_define_function_with_no_parameters): Set DECL_PRESERVE_P for COBOL-
+	style nested programs.  (gg_array_of_bytes): Fix bad cast.
+
+2025-04-03  Jakub Jelinek  <jakub@redhat.com>
+
+	PR cobol/119242
+	* genapi.cc (binary_initial_from_float128): Use
+	native_encode_wide_int.
+
+2025-04-02  Bob Dubner  <rdubner@symas.com>
+
+	PR cobol/119521
+	* genapi.cc: (parser_division): Change comment.
+	(parser_symbol_add): Change intermediate_t handling.
+	* parse.y: Multiple changes to new_alphanumeric() calls.
+	* parse_ante.h: Establish named constant for date function
+	calls.  Change declaration of new_alphanumeric() function.
+	* symbols.cc: (new_temporary_impl): Use named constant
+	for default size of temporary alphanumerics.
+	* symbols.h: Establish MAXIMUM_ALPHA_LENGTH constant.
+
+2025-04-02  Jonathan Wakely  <jwakely@redhat.com>
+
+	* symfind.cc (finalize_symbol_map2): Use std::list::remove_if
+	instead of std::remove_if.
+
+2025-04-01  Bob Dubner  <rdubner@symas.com>
+
+	* genapi.cc: (section_label): Use xasprintf() instead of sprintf().
+	(paragraph_label): Likewise.  (leave_procedure): Likewise.
+	(find_procedure): Likewise.  (parser_goto): Likewise.
+	(parser_enter_file): Likewise.
+
 2025-03-28  Jakub Jelinek  <jakub@redhat.com>
 
 	* Make-lang.in (cobol/charmaps.cc, cobol/valconv.cc): Used sed -e

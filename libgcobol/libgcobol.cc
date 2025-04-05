@@ -49,6 +49,8 @@
 #include <dirent.h>
 #include <sys/resource.h>
 
+#include "config.h"
+
 #include "ec.h"
 #include "common-defs.h"
 #include "io.h"
@@ -65,6 +67,30 @@
 #include <execinfo.h>
 
 #include "exceptl.h"
+
+#if !defined (HAVE_STRFROMF32)
+# if __FLT_MANT_DIG__ == 24 && __FLT_MAX_EXP__ == 128
+static int
+strfromf32 (char *s, size_t n, const char *f, float v)
+{
+  return snprintf (s, n, f, (double) v);
+}
+# else
+#  error "It looks like float on this platform is not IEEE754"
+# endif
+#endif
+
+#if !defined (HAVE_STRFROMF64)
+# if __DBL_MANT_DIG__ == 53 && __DBL_MAX_EXP__ == 1024
+static int
+strfromf64 (char *s, size_t n, const char *f, double v)
+{
+  return snprintf (s, n, f, v);
+}
+# else
+#  error "It looks like double on this platform is not IEEE754"
+# endif
+#endif
 
 // This couldn't be defined in symbols.h because it conflicts with a LEVEL66
 // in parse.h
@@ -11312,8 +11338,10 @@ __gg__adjust_dest_size(cblc_field_t *dest, size_t ncount)
     {
     if( dest->allocated < ncount )
       {
-      dest->allocated = ncount;
-      dest->data = (unsigned char *)realloc(dest->data, ncount);
+      fprintf(stderr, "libgcobol.cc:__gg__adjust_dest_size(): Adjusting size upward is not possible.\n");
+      abort();
+//      dest->allocated = ncount;
+//      dest->data = (unsigned char *)realloc(dest->data, ncount);
       }
     dest->capacity = ncount;
     }
@@ -12643,7 +12671,7 @@ __gg__module_name(cblc_field_t *dest, module_type_t type)
       break;
     }
 
-__gg__adjust_dest_size(dest, strlen(result));
+  __gg__adjust_dest_size(dest, strlen(result));
   memcpy(dest->data, result, strlen(result)+1);
   }
 

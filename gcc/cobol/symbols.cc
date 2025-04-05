@@ -2350,7 +2350,7 @@ symbol_table_init(void) {
       0, {}, {2,2,2,0, NULL}, NULL },
     { 0, FldNumericBin5, FldInvalid, 0, 0, 0, 0, nonarray, 0, "UPSI-0",
       0, {}, {2,2,4,0, NULL}, NULL },
-    { 0, FldNumericBin5, FldInvalid, 0, 0, 0, 0, nonarray, 0, "RETURN-CODE",
+    { 0, FldNumericBin5, FldInvalid, signable_e, 0, 0, 0, nonarray, 0, "RETURN-CODE",
       0, {}, {2,2,4,0, NULL}, NULL },
     { 0, FldNumericBin5, FldInvalid, 0, 0, 0, 0, nonarray, 0, "LINAGE-COUNTER",
       0, {}, {2,2,4,0, NULL}, NULL },
@@ -3237,7 +3237,8 @@ new_temporary_impl( enum cbl_field_type_t type )
                                 0, FldAlphanumeric, FldInvalid,
                                 intermediate_e, 0, 0, 0, nonarray, 0, "",
                                 0, cbl_field_t::linkage_t(),
-                                {}, NULL };
+                                {MAXIMUM_ALPHA_LENGTH, MAXIMUM_ALPHA_LENGTH, 
+                                                            0, 0, NULL}, NULL };
   static const struct cbl_field_t empty_float = {
                                 0, FldFloat, FldInvalid,
                                 intermediate_e,

@@ -1728,23 +1728,24 @@ write-only accesses to objects that are never read from.  Such accesses
 may be diagnosed by warnings such as @option{-Wstringop-overflow},
 @option{-Wuninitialized}, @option{-Wunused}, and others.
 
-The @code{access} attribute specifies that a function to whose by-reference
-arguments the attribute applies accesses the referenced object according to
-@var{access-mode}.  The @var{access-mode} argument is required and must be
-one of four names: @code{read_only}, @code{read_write}, @code{write_only},
-or @code{none}.  The remaining two are positional arguments.
+The @code{access} attribute specifies that a pointer or reference argument
+to the function is accessed according to @var{access-mode}, which must be
+one of @code{read_only}, @code{read_write}, @code{write_only},
+or @code{none}.  The semantics of these modes are described below.
 
-The required @var{ref-index} positional argument  denotes a function
-argument of pointer (or in C++, reference) type that is subject to
-the access.  The same pointer argument can be referenced by at most one
-distinct @code{access} attribute.
+The argument the attribute applies to is identifed by @var{ref-index}, which
+is an integer constant representing its position in the argument list.
+Argument numbering starts from 1.  You can specify multiple @code{access}
+attributes to describe the access modes of different arguments, but multiple
+@code{access} attributes applying to the same argument are not permitted.
 
-The optional @var{size-index} positional argument denotes a function
+The optional @var{size-index} denotes the position of a function
 argument of integer type that specifies the maximum size of the access.
 The size is the number of elements of the type referenced by @var{ref-index},
 or the number of bytes when the pointer type is @code{void*}.  When no
 @var{size-index} argument is specified, the pointer argument must be either
-null or point to a space that is suitably aligned and large for at least one
+null or point to a space that is suitably aligned and large enough
+for at least one
 object of the referenced type (this implies that a past-the-end pointer is
 not a valid argument).  The actual size of the access may be less but it
 must not be more.
@@ -1756,7 +1757,7 @@ is zero, the referenced object must be initialized.  The mode implies
 a stronger guarantee than the @code{const} qualifier which, when cast away
 from a pointer, does not prevent the pointed-to object from being modified.
 Examples of the use of the @code{read_only} access mode is the argument to
-the @code{puts} function, or the second and third arguments to
+the @code{puts} function, or the second argument to
 the @code{memcpy} function.
 
 @smallexample
@@ -1796,12 +1797,13 @@ __attribute__ ((access (write_only, 1, 2), access (read_write, 3)))
 int fgets (char*, int, FILE*);
 @end smallexample
 
-The access mode @code{none} specifies that the pointer to which it applies
+The access mode @code{none} specifies that the pointer argument
+to which it applies
 is not used to access the referenced object at all.  Unless the pointer is
-null the pointed-to object must exist and have at least the size as denoted
+null, the pointed-to object must exist and have at least the size as denoted
 by the @var{size-index} argument.  When the optional @var{size-index}
-argument is omitted for an argument of @code{void*} type the actual pointer
-agument is ignored.  The referenced object need not be initialized.
+argument is omitted for an argument of @code{void*} type, the actual pointer
+argument is ignored.  The referenced object need not be initialized.
 The mode is intended to be used as a means to help validate the expected
 object size, for example in functions that call @code{__builtin_object_size}.
 @xref{Object Size Checking}.
@@ -1812,7 +1814,8 @@ an access @strong{will} happen.  Also, the @code{access} attribute does not
 imply the attribute @code{nonnull} nor the attribute @code{nonnull_if_nonzero};
 it may be appropriate to add both attributes at the declaration of a function
 that unconditionally manipulates a buffer via a pointer argument.  See the
-@code{nonnull} or @code{nonnull_if_nonzero} attributes for more information and
+@code{nonnull} or @code{nonnull_if_nonzero} function attributes,
+documented later in this section, for more information and
 caveats.
 
 @cindex @code{alias} function attribute
@@ -2035,24 +2038,32 @@ called.  Functions with these attributes are useful for
 initializing data that is used implicitly during the execution of
 the program.
 
-On some targets the attributes also accept an integer argument to
+On most targets the attributes also accept an integer argument to
 specify a priority to control the order in which constructor and
-destructor functions are run.  A constructor
-with a smaller priority number runs before a constructor with a larger
-priority number; the opposite relationship holds for destructors.  Note
-that priorities 0-100 are reserved.  So, if you have a constructor that
+destructor functions are run.  The @var{priority} argument is a
+constant integral expression bounded between 101 and 65535 inclusive;
+priorities 0-100 are reserved for use by the compiler and its runtime
+libraries.
+A constructor with a smaller priority number runs before a constructor with
+a larger priority number; the opposite relationship holds for destructors.
+So, if you have a constructor that
 allocates a resource and a destructor that deallocates the same
-resource, both functions typically have the same priority.  The
-priorities for constructor and destructor functions are the same as
-those specified for namespace-scope C++ objects (@pxref{C++ Attributes}).
-However, at present, the order in which constructors for C++ objects
-with static storage duration and functions decorated with attribute
-@code{constructor} are invoked is unspecified. In mixed declarations,
-attribute @code{init_priority} can be used to impose a specific ordering.
+resource, both functions typically have the same priority.
 
-Using the argument forms of the @code{constructor} and @code{destructor}
-attributes on targets where the feature is not supported is rejected with
-an error.
+The order in which constructors for C++ objects with static storage
+duration are invoked relative to functions decorated with attribute
+@code{constructor} is normally unspecified.  You can use
+attribute @code{init_priority} (@pxref{C++ Attributes}) on the
+declarations of namespace-scope C++ objects to impose a specific
+ordering; the @var{priority} for the @code{init_priority} attribute
+has the same effect as the @var{priority} for the @code{constructor}
+attribute.
+
+Using the argument form of the @code{constructor} and
+@code{destructor} attributes on targets where the feature is not
+supported is rejected with an error.  Only a few targets (typically
+those not using ELF object format, or the GNU linker) reject this
+usage.
 
 @cindex @code{copy} function attribute
 @item copy
@@ -9303,7 +9314,7 @@ The @code{gnu::musttail} or @code{clang::musttail} standard attribute
 or @code{musttail} GNU attribute can be applied to a @code{return} statement
 with a return-value expression that is a function call.  It asserts that the
 call must be a tail call that does not allocate extra stack space, so it is
-safe to use tail recursion to implement long running loops.
+safe to use tail recursion to implement long-running loops.
 
 @smallexample
 [[gnu::musttail]] return foo();
@@ -9313,12 +9324,78 @@ safe to use tail recursion to implement long running loops.
 __attribute__((musttail)) return bar();
 @end smallexample
 
-If the compiler cannot generate a @code{musttail} tail call it will report
-an error.  On some targets tail calls may never be supported.
-Tail calls cannot reference locals in memory, which may affect
-builds without optimization when passing small structures, or passing
-or returning large structures.  Enabling @option{-O1} or @option{-O2} can
-improve the success of tail calls.
+If the compiler cannot generate a @code{musttail} tail call it reports
+an error.  On some targets, tail calls may not be supported at all.
+The @code{musttail} attribute asserts that the lifetime of automatic
+variables, function parameters and temporaries (unless they have non-trivial
+destruction) can end before the actual call instruction, and that any access
+to those from inside of the called function results is considered undefined
+behavior.  Enabling @option{-O1} or @option{-O2} can improve the success of
+tail calls.
+
+@smallexample
+int foo (int *);
+void bar (int *);
+struct S @{ S (); ~S (); int s; @};
+
+int
+baz (int *x)
+@{
+  if (*x == 1)
+    @{
+      int a = 42;
+      /* The call is a tail call (would not be without the
+         attribute).  Dereferencing the pointer in the callee is
+         undefined behavior, and there is a warning emitted
+         for this by default (@option{-Wmusttail-local-addr}).  */
+      [[gnu::musttail]] return foo (&a);
+    @}
+  else if (*x == 2)
+    @{
+      int a = 42;
+      bar (&a);
+      /* The call is a tail call (would not be without the
+         attribute).  If bar stores the pointer anywhere, dereferencing
+         it in foo is undefined behavior.  There is a warning
+         emitted for this with @option{-Wextra}, which implies
+         @option{-Wmaybe-musttail-local-addr}.  */
+      [[gnu::musttail]] return foo (nullptr);
+    @}
+  else
+    @{
+      S s;
+      /* The s variable requires non-trivial destruction which ought
+         to be performed after the foo call returns, so this is
+         rejected.  */
+      [[gnu::musttail]] return foo (&s.s);
+    @}
+@}
+@end smallexample
+
+To avoid the @option{-Wmaybe-musttail-local-addr} warning in the
+above @code{*x == 2} case and similar code, consider defining the
+maybe-escaped variables in a separate scope that ends before the
+return statement, if that is possible, to make it clear that the
+variable is not live during the call.  So:
+
+@smallexample
+  else if (*x == 2)
+    @{
+      @{
+        int a = 42;
+        bar (&a);
+      @}
+      /* The call is a tail call (would not be without the
+         attribute).  If bar stores the pointer anywhere, dereferencing
+         it in foo is undefined behavior even without tail call
+         optimization, and there is no warning.  */
+      [[gnu::musttail]] return foo (nullptr);
+    @}
+@end smallexample
+
+It is not possible to avoid the warning in this way if the maybe-escaped
+variable is a function argument, because those are in scope
+for the whole function.
 @end table
 
 @node Attribute Syntax
@@ -9898,50 +9975,79 @@ always the C-language name.
 @node Structure-Layout Pragmas
 @subsection Structure-Layout Pragmas
 
-For compatibility with Microsoft Windows compilers, GCC supports a
-set of @code{#pragma} directives that change the maximum alignment of
+@cindex pragma, pack
+@cindex pack pragma
+For compatibility with Microsoft Windows compilers, GCC supports a set
+of @code{#pragma pack} directives that change the maximum alignment of
 members of structures (other than zero-width bit-fields), unions, and
-classes subsequently defined. The @var{n} value below always is required
-to be a small power of two and specifies the new alignment in bytes.
+classes subsequently defined. The @var{n} value below specifies the
+new alignment in bytes and may have the value 1, 2, 4, 8, and 16.  A
+value of 0 is also permitted and indicates the default alignment (as if
+no @code{#pragma pack} were in effect) should be used.
 
-@enumerate
-@item @code{#pragma pack(@var{n})} simply sets the new alignment.
-@item @code{#pragma pack()} sets the alignment to the one that was in
+@table @code
+@item #pragma pack(@var{n})
+Sets the new alignment according to @var{n}.
+
+@item #pragma pack()
+Sets the alignment to the one that was in
 effect when compilation started (see also command-line option
-@option{-fpack-struct[=@var{n}]} @pxref{Code Gen Options}).
-@item @code{#pragma pack(push[,@var{n}])} pushes the current alignment
+@option{-fpack-struct[=@var{n}]}.   @xref{Code Gen Options}).
+
+@item #pragma pack(push[,@var{n}])
+Pushes the current alignment
 setting on an internal stack and then optionally sets the new alignment.
-@item @code{#pragma pack(pop)} restores the alignment setting to the one
+
+@item #pragma pack(pop)
+Restores the alignment setting to the one
 saved at the top of the internal stack (and removes that stack entry).
 Note that @code{#pragma pack([@var{n}])} does not influence this internal
 stack; thus it is possible to have @code{#pragma pack(push)} followed by
-multiple @code{#pragma pack(@var{n})} instances and finalized by a single
-@code{#pragma pack(pop)}.
-@end enumerate
+multiple @code{#pragma pack(@var{n})} instances, with the original state
+restored by a single @code{#pragma pack(pop)}.
 
+@end table
+
+You can also use the @code{packed} type attribute (@pxref{Common Type
+Attributes}) to pack a structure.  However, the @code{packed}
+attribute interferes with @code{#pragma pack}, and attempting to use
+them together may cause spurious warnings or unexpected behavior.
+@c FIXME: This is PR 60972.
+
+@cindex pragma, ms_struct
+@cindex ms_struct pragma
+@cindex Microsoft struct layout
 Some targets, e.g.@: x86 and PowerPC, support the @code{#pragma ms_struct}
-directive which lays out structures and unions subsequently defined as the
-documented @code{__attribute__ ((ms_struct))}.
+directive, which causes subsequent structure and union declarations to
+be laid out in the same way as
+@code{__attribute__ ((ms_struct))}; @pxref{x86 Variable Attributes}.
 
-@enumerate
-@item @code{#pragma ms_struct on} turns on the Microsoft layout.
-@item @code{#pragma ms_struct off} turns off the Microsoft layout.
-@item @code{#pragma ms_struct reset} goes back to the default layout.
-@end enumerate
+@table @code
+@item #pragma ms_struct on
+Turns on the Microsoft layout.
+@item #pragma ms_struct off
+Turns off the Microsoft layout.
+@item #pragma ms_struct reset
+Goes back to the default layout.
+@end table
 
+@cindex pragma, scalar_storage_order
 Most targets also support the @code{#pragma scalar_storage_order} directive
-which lays out structures and unions subsequently defined as the documented
-@code{__attribute__ ((scalar_storage_order))}.
+which lays out subsequent structure and union declarations in
+in the same way as the documented
+@code{__attribute__ ((scalar_storage_order))}; @pxref{Common Type Attributes}.
 
-@enumerate
-@item @code{#pragma scalar_storage_order big-endian} sets the storage order
-of the scalar fields to big-endian.
-@item @code{#pragma scalar_storage_order little-endian} sets the storage order
-of the scalar fields to little-endian.
-@item @code{#pragma scalar_storage_order default} goes back to the endianness
+@table @code
+@item #pragma scalar_storage_order big-endian
+@itemx #pragma scalar_storage_order little-endian
+Set the storage order of scalar fields to big- or little-endian,
+respectively.
+
+@item #pragma scalar_storage_order default
+Goes back to the endianness
 that was in effect when compilation started (see also command-line option
 @option{-fsso-struct=@var{endianness}} @pxref{C Dialect Options}).
-@end enumerate
+@end table
 
 @node Weak Pragmas
 @subsection Weak Pragmas
@@ -12943,7 +13049,8 @@ C and/or C++ standards, while others remain specific to GNU C.
 * Typeof::              @code{typeof}: referring to the type of an expression.
 * Offsetof::            Special syntax for @code{offsetof}.
 * Alignment::           Determining the alignment of a function, type or variable.
-* Incomplete Enums::    @code{enum foo;}, with details to follow.
+* Enum Extensions::     Forward declarations and specifying the underlying type.
+* Boolean Type::	Support for the @code{_Bool} keyword.
 * Variadic Macros::     Macros with a variable number of arguments.
 * Conditionals::        Omitting the middle operand of a @samp{?:} expression.
 * Case Ranges::         `case 1 ... 9' and such.
@@ -13643,22 +13750,71 @@ If the operand of the @code{__alignof__} expression is a function,
 the expression evaluates to the alignment of the function which may
 be specified by attribute @code{aligned} (@pxref{Common Function Attributes}).
 
-@node Incomplete Enums
-@subsection Incomplete @code{enum} Types
+@node Enum Extensions
+@subsection Extensions to @code{enum} Type Declarations
+@anchor{Incomplete Enums}
+@cindex @code{enum} extensions
+@cindex base type of an @code{enum}
+@cindex underlying type of an @code{enum}
+@cindex forward declaration of an @code{enum}
+@cindex opaque @code{enum} types
+@cindex incomplete @code{enum} types
 
-You can define an @code{enum} tag without specifying its possible values.
-This results in an incomplete type, much like what you get if you write
-@code{struct foo} without describing the elements.  A later declaration
-that does specify the possible values completes the type.
+The C23 and C++11 standards added new syntax to specify the underlying
+type of an @code{enum} type.  For example,
 
+@smallexample
+enum pet : unsigned char @{ CAT, DOG, ROCK @};
+@end smallexample
+
+In GCC, this feature is supported as an extension in all older
+dialects of C and C++ as well.  For C++ dialects before C++11, use
+@option{-Wno-c++11-extensions} to silence the associated warnings.
+
+You can also forward-declare an @code{enum} type, without specifying
+its possible values.  The enumerators are supplied in a later
+redeclaration of the type, which must match the underlying type of the
+first declaration.
+
+@smallexample
+enum pet : unsigned char;
+static enum pet my_pet;
+...
+enum pet : unsigned char @{ CAT, DOG, ROCK @};
+@end smallexample
+
+Forward declaration of @code{enum} types with an explicit underlying
+type is also a feature of C++11 that is supported as an extension by
+GCC for all C dialects.  However, it's not available in C++ dialects
+prior to C++11.
+
+The C++ standard refers to a forward declaration of an @code{enum}
+with an explicit underlying type as an @dfn{opaque type}.  It is not
+considered an incomplete type, since its size is known.  That means
+you can declare variables or allocate storage using the type before
+the redeclaration, not just use pointers of that type.
+
+GCC has also traditionally supported forward declarations of
+@code{enum} types that don't include an explicit underlying type
+specification.  This results in an incomplete type, much like what you
+get if you write @code{struct foo} without describing the elements.
 You cannot allocate variables or storage using the type while it is
 incomplete.  However, you can work with pointers to that type.
 
-This extension may not be very useful, but it makes the handling of
-@code{enum} more consistent with the way @code{struct} and @code{union}
-are handled.
+Forward-declaring an incomplete enum type without an explicit
+underlying type is supported as an extension in all GNU C dialects,
+but is not supported at all in GNU C++.
 
-This extension is not supported by GNU C++.
+@node Boolean Type
+@subsection Support for the @code{_Bool} Type
+@cindex boolean type
+@cindex @code{_Bool} keyword
+
+The C99 standard added @code{_Bool} as a C language keyword naming the
+boolean type.  As an extension, GNU C also recognizes @code{_Bool} in
+C90 mode as well as with @option{-std=c99} and later.
+
+GNU C++ does not support the @code{_Bool} keyword.
 
 @node Variadic Macros
 @subsection Macros with a Variable Number of Arguments.
@@ -30241,11 +30397,11 @@ variable or function or moving it into a tagged inline namespace.
 In Standard C++, objects defined at namespace scope are guaranteed to be
 initialized in an order in strict accordance with that of their definitions
 @emph{in a given translation unit}.  No guarantee is made for initializations
-across translation units.  However, GNU C++ allows users to control the
+across translation units.  However, GNU C++ allows you to control the
 order of initialization of objects defined at namespace scope with the
 @code{init_priority} attribute by specifying a relative @var{priority},
-a constant integral expression currently bounded between 101 and 65535
-inclusive.  Lower numbers indicate a higher priority.
+with the same meaning as for the @code{constructor} attribute
+(@pxref{Common Function Attributes}).
 
 In the following example, @code{A} would normally be created before
 @code{B}, but the @code{init_priority} attribute reverses that order:
@@ -30258,6 +30414,11 @@ Some_Class  B  __attribute__ ((init_priority (543)));
 @noindent
 Note that the particular values of @var{priority} do not matter; only their
 relative ordering.
+
+As with the @var{priority} argument to the @code{constructor} and
+@code{destructor} attributes, a few targets do not support the
+@code{init_priority} attribute.  In that case the attribute is rejected
+with an error rather than ignored.
 
 @cindex @code{no_dangling} type attribute
 @cindex @code{no_dangling} function attribute

@@ -209,11 +209,18 @@ AM_PROG_LIBTOOL
 LT_INIT
 
 AC_LIBTOOL_DLOPEN
+LT_LIB_M
 
 AM_CONDITIONAL([ENABLE_DARWIN_AT_RPATH], [test x$enable_darwin_at_rpath = xyes])
 
 AC_SUBST(enable_shared)
 AC_SUBST(enable_static)
+
+# These are GLIBC
+AC_CHECK_FUNCS_ONCE(random_r srandom_r initstate_r setstate_r)
+
+# These are C23, and might not be available in libc.
+AC_CHECK_FUNCS_ONCE(strfromf32 strfromf64)
 
 if test "${multilib}" = "yes"; then
   multilib_arg="--enable-multilib"

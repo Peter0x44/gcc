@@ -1,3 +1,425 @@
+2025-04-04  Jakub Jelinek  <jakub@redhat.com>
+
+	PR lto/119625
+	* lto-opts.cc (lto_write_options): If neither flag_pic nor
+	flag_pie are set, check first for flag_pie and only later
+	for flag_pic rather than the other way around, use a temporary
+	variable.  If flag_cf_protection is not set, don't append anything
+	if flag_cf_protection is none of CF_{NONE,FULL,BRANCH,RETURN} and
+	use a temporary variable.
+
+2025-04-04  Jakub Jelinek  <jakub@redhat.com>
+
+	PR gcov-profile/119618
+	* profile.cc (branch_prob): Only check for musttail calls if
+	cfun->has_musttail.  Use gsi_last_nondebug_bb instead of gsi_last_bb.
+
+2025-04-04  Jakub Jelinek  <jakub@redhat.com>
+
+	PR tree-optimization/119616
+	* tree-tailcall.cc (suitable_for_tail_call_opt_p): Move checking
+	for addressable parameters from here ...
+	(find_tail_calls): ... here.  If cfun->has_musttail, don't clear
+	opt_tailcalls for it, instead set a local flag and punt if we can't
+	tail recurse optimize it.
+
+2025-04-04  Jakub Jelinek  <jakub@redhat.com>
+
+	PR middle-end/119613
+	* cfgrtl.cc (purge_dead_edges): Remove REG_EH_REGION notes from
+	tail calls.
+
+2025-04-04  Jakub Jelinek  <jakub@redhat.com>
+
+	PR target/115910
+	* rtlanal.cc (pattern_cost): Return at least COSTS_N_INSNS (1)
+	rather than just COSTS_N_INTNS (1) for cost <= 0.
+	* config/i386/i386.cc (ix86_rtx_costs): Set *total to 1 for
+	TARGET_64BIT x86_64_zext_immediate_operand constants.
+
+2025-04-04  Andrew Pinski  <quic_apinski@quicinc.com>
+
+	PR ipa/119599
+	* tree-cfg.cc (pass_warn_function_return::execute): Turn return statements always
+	into __builtin_unreachable calls.
+
+2025-04-04  Jakub Jelinek  <jakub@redhat.com>
+
+	PR tree-optimization/119614
+	* tree-tailcall.cc (find_tail_calls): Handle also pointer types in the
+	IPA-VRP workaround.
+
+2025-04-03  Thomas Schwinge  <tschwinge@baylibre.com>
+
+	PR target/119573
+	* config/nvptx/nvptx.cc (nvptx_encode_section_info): Don't set
+	'DATA_AREA_CONST' for 'TREE_CONSTANT', or 'TREE_READONLY'.
+	(nvptx_asm_declare_constant_name): Use '.global' instead of
+	'.const'.
+
+2025-04-03  Peter Bergner  <bergner@linux.ibm.com>
+
+	PR target/119308
+	* config/rs6000/rs6000-logue.cc (rs6000_output_function_epilogue):
+	Handle GCC COBOL for the tbtab lang field.
+
+2025-04-03  Sandra Loosemore  <sloosemore@baylibre.com>
+
+	* doc/extend.texi (Statement Attributes): Copy-edit the musttail
+	attribute documentation and correct the comment in the last
+	example.
+
+2025-04-03  Jan Hubicka  <hubicka@ucw.cz>
+
+	* config/i386/x86-tune-costs.h (ix86_size_cost): Fix sizes of move
+	instructions
+
+2025-04-03  Jakub Jelinek  <jakub@redhat.com>
+
+	PR cobol/119242
+	* fold-const.h (native_encode_wide_int): Declare.
+	* fold-const.cc (native_encode_wide_int): New function.
+	(native_encode_int): Use it.
+
+2025-04-03  Xi Ruoyao  <xry111@xry111.site>
+
+	* config/loongarch/genopts/gen-evolution.awk: Avoid using gensub
+	that FreeBSD awk lacks.
+
+2025-04-03  Hongyu Wang  <hongyu.wang@intel.com>
+
+	PR target/119539
+	* config/i386/i386.md (*<insn><mode>3_mask): Emit NF variant of
+	rotate when APX_NF enabled, and use force_lowpart_subreg.
+	(*<insn><mode>3_mask_1): Likewise.
+
+2025-04-03  Sandra Loosemore  <sloosemore@baylibre.com>
+
+	PR c/101440
+	* doc/extend.texi (Common Function Attributes): Clean up some
+	confusing language in the description of the "access" attribute.
+
+2025-04-02  Sandra Loosemore  <sloosemore@baylibre.com>
+	    GUO Yixuan  <culu.gyx@gmail.com>
+
+	PR driver/58973
+	* common.opt (Werror, Werror=): Use less awkward wording in
+	description.
+	(pedantic-errors): Likewise.
+	* doc/invoke.texi (Warning Options): Likewise for -Werror and
+	-Werror= here.
+
+2025-04-02  Robin Dapp  <rdapp@ventanamicro.com>
+
+	PR target/119572
+	* config/riscv/autovec.md: Mask broadcast value.
+
+2025-04-02  Jin Ma  <jinma@linux.alibaba.com>
+
+	* config/riscv/bitmanip.md: The optimization can only be applied if
+	the high bit of operands[3] is set to 1.
+
+2025-04-02  Sandra Loosemore  <sloosemore@baylibre.com>
+
+	PR c/114957
+	PR c/78008
+	PR c++/60972
+	* doc/extend.texi (Structure-Layout Pragmas):  Add @cindex
+	entries	and reformat the pragma descriptions to match the markup
+	used for other pragmas.  Document what #pragma pack(0) does.
+	Add cross-references to similar attributes.
+
+2025-04-02  Jakub Jelinek  <jakub@redhat.com>
+
+	PR tree-optimization/119491
+	* tree-tailcall.cc (single_non_eh_succ_edge): New function.
+	(independent_of_stmt_p): Use single_non_eh_succ_edge (bb)->dest
+	instead of single_succ (bb).
+	(empty_eh_cleanup): New function.
+	(find_tail_calls): Diagnose throwing of exceptions which do not
+	propagate only if there are no EDGE_EH successor edges.  If there are
+	and the call is musttail, use empty_eh_cleanup to find if the cleanup
+	is not empty.  If not or the call is not musttail, use different
+	diagnostics.  Set is_noreturn even if there are successor edges.  Use
+	single_non_eh_succ_edge (abb) instead of single_succ_edge (abb).  Punt
+	on internal noreturn calls.
+	(decrease_profile): Don't assert 0 or 1 successor edges.
+	(eliminate_tail_call): Use
+	single_non_eh_succ_edge (gsi_bb (t->call_gsi)) instead of
+	single_succ_edge (gsi_bb (t->call_gsi)).
+	(tree_optimize_tail_calls_1): Also look into basic blocks with
+	single succ edge which is EDGE_EH for noreturn musttail calls.
+
+2025-04-02  Richard Biener  <rguenther@suse.de>
+
+	PR tree-optimization/119586
+	* tree-vect-stmts.cc (vectorizable_load): Assume we got
+	alignment analysis for VMAT_STRIDED_SLP wrong.
+	(vectorizable_store): Likewise.
+
+2025-04-02  Jakub Jelinek  <jakub@redhat.com>
+
+	* doc/extend.texi (musttail statement attribute): Hint how
+	to avoid -Wmaybe-musttail-local-addr warnings.
+
+2025-04-02  Jakub Jelinek  <jakub@redhat.com>
+
+	PR ipa/119376
+	* common.opt (Wmusttail-local-addr, Wmaybe-musttail-local-addr): New.
+	* tree-tailcall.cc (suitable_for_tail_call_opt_p): Don't fail for
+	TREE_ADDRESSABLE PARM_DECLs for musttail calls if diag_musttail.
+	Emit -Wmusttail-local-addr warnings.
+	(maybe_error_musttail): Use gimple_location instead of directly
+	accessing location member.
+	(find_tail_calls): For musttail calls if diag_musttail, don't fail
+	if address of local could escape to the call, instead emit
+	-Wmaybe-musttail-local-addr warnings.  Emit
+	-Wmaybe-musttail-local-addr warnings also for address taken
+	parameters.
+	* common.opt.urls: Regenerate.
+	* doc/extend.texi (musttail statement attribute): Clarify local
+	variables without non-trivial destruction are considered out of scope
+	before the tail call instruction.
+	* doc/invoke.texi (-Wno-musttail-local-addr,
+	-Wmaybe-musttail-local-addr): Document.
+
+2025-04-02  Andi Kleen  <ak@gcc.gnu.org>
+
+	PR middle-end/119482
+	* bitmap.cc (bitmap_set_bit): Write back value unconditionally
+
+2025-04-02  Sandra Loosemore  <sloosemore@baylibre.com>
+
+	PR c++/118982
+	* doc/extend.texi (Common Function Attributes): For the
+	constructor/destructory attribute, be more explicit about the
+	relationship between the constructor attribute and
+	the C++ init_priority attribute, and add a cross-reference.
+	Also document that most targets support this.
+	(C++ Attributes): Similarly for the init_priority attribute.
+
+2025-04-01  Sandra Loosemore  <sloosemore@baylibre.com>
+
+	PR c/118118
+	* doc/extend.texi (Boolean Type): New section.
+
+2025-04-01  Sandra Loosemore  <sloosemore@baylibre.com>
+
+	PR c/117689
+	* doc/extend.texi (Incomplete Enums): Rename to....
+	(Enum Extensions): This.  Document support for specifying the
+	underlying type of an enum as an extension in all earlier C
+	and C++ standards.  Document that a forward declaration with
+	underlying type is not an incomplete type, and which dialects
+	GCC supports that in.
+
+2025-04-01  Tom Tromey  <tromey@adacore.com>
+
+	* dwarf2out.cc (modified_type_die): Use mod_scope for
+	ranged types, base types, and array types.
+
+2025-04-01  Jakub Jelinek  <jakub@redhat.com>
+
+	PR tree-optimization/119493
+	* tree-tailcall.cc (find_tail_calls): Don't punt on tail recusion
+	if some arguments don't have is_gimple_reg_type, only punt if they
+	have non-POD types, or volatile, or addressable or (for now) it is
+	not a musttail call.  Set tailr_arg_needs_copy in those cases too.
+	(eliminate_tail_call): Copy call arguments to params if they don't
+	have is_gimple_reg_type, use temporaries if the argument is used
+	later.
+	(tree_optimize_tail_calls_1): Skip !is_gimple_reg_type
+	tailr_arg_needs_copy parameters.  Formatting fix.
+
+2025-04-01  Jakub Jelinek  <jakub@redhat.com>
+
+	PR rtl-optimization/119291
+	* combine.cc (try_combine): For splitting of PARALLEL with
+	2 independent SETs into i2 and i3 sets check reg_used_between_p
+	of the SET_DESTs rather than just modified_between_p.
+
+2025-04-01  Richard Biener  <rguenther@suse.de>
+
+	PR tree-optimization/119534
+	* tree-vect-stmts.cc (get_load_store_type): Reject
+	VECTOR_BOOLEAN_TYPE_P offset vector type for emulated gathers.
+
+2025-04-01  Martin Uecker  <uecker@tugraz.at>
+
+	PR c/119173
+	* doc/invoke.texi (Warning Options): Move to general options.
+
+2025-04-01  Jakub Jelinek  <jakub@redhat.com>
+
+	PR gcov-profile/119535
+	* profile.cc (branch_prob): Ignore any edges from bbs ending with
+	musttail call, rather than only EDGE_FAKE edges from those to EXIT.
+
+2025-04-01  Jakub Jelinek  <jakub@redhat.com>
+
+	PR tree-optimization/119493
+	* tree-tailcall.cc (tree_optimize_tail_calls_1): Ignore tail recursion
+	candidates which need accumulators if there is at least one musttail
+	non-recursive call.
+
+2025-04-01  Jakub Jelinek  <jakub@redhat.com>
+
+	PR middle-end/119537
+	* gimplify.cc (find_used_user_labels): New function.
+	(gimplify_call_expr): Don't remove complex assume expression at -O0
+	if it defines any user labels.
+	* gimple-low.cc: Include diagnostic-core.h.
+	(assume_labels): New variable.
+	(diagnose_assume_labels): New function.
+	(lower_function_body): Call it via walk_gimple_seq if assume_labels
+	is non-NULL, then BITMAP_FREE assume_labels.
+	(find_assumption_locals_r): Record in assume_labels uids of user
+	labels defined in assume attribute expressions.
+
+2025-04-01  Thomas Schwinge  <tschwinge@baylibre.com>
+
+	PR target/119369
+	* config/gcn/gcn-protos.h (gcn_asm_weaken_decl): Declare.
+	* config/gcn/gcn.cc (gcn_asm_weaken_decl): New.
+	* config/gcn/gcn-hsa.h (ASM_WEAKEN_DECL): '#define' to this.
+
+2025-04-01  Richard Biener  <rguenther@suse.de>
+
+	PR target/119549
+	* common/config/i386/i386-common.cc (ix86_handle_option):
+	Assert that both OPT_msse4 and OPT_mno_sse4 are never unset.
+	* config/i386/i386-options.cc (ix86_valid_target_attribute_inner_p):
+	Process negated OPT_msse4 as OPT_mno_sse4.
+
+2025-04-01  Tobias Burnus  <tburnus@baylibre.com>
+
+	PR middle-end/119559
+	* gimplify.cc (modify_call_for_omp_dispatch): Reorder checks to avoid
+	asserts and bogus diagnostic.
+
+2025-04-01  Hu, Lin1  <lin1.hu@intel.com>
+	    Hongyu Wang  <hongyu.wang@intel.com>
+
+	PR target/119473
+	* config/i386/sse.md
+	(vaesdec_<mode>): Set attr "isa" as "avx,vaes_avx512vl", "type" as
+	"sselog1", "mode" as "TI".
+	(vaesdeclast_<mode>): Ditto.
+	(vaesenc_<mode>): Ditto.
+	(vaesenclast_<mode>): Ditto.
+
+2025-04-01  Monk Chiang  <monk.chiang@sifive.com>
+	    Kito Cheng  <kito.cheng@sifive.com>
+
+	* config/riscv/riscv-v.cc: Add restrict for insert LMUL.
+	* config/riscv/riscv-vector-builtins-types.def:
+	Use RVV_REQUIRE_ELEN_64 to check LMUL number.
+	* config/riscv/riscv-vector-switch.def: Likewise.
+	* config/riscv/vector-iterators.md: Check TARGET_VECTOR_ELEN_64
+	rather than "TARGET_MIN_VLEN > 32" for all iterator.
+
+2025-04-01  Lulu Cheng  <chenglulu@loongson.cn>
+
+	* doc/invoke.texi: Corrected the position of '-mtls-dialect=opt'
+	option.
+
+2025-03-31  Jørgen Kvalsvik  <j@lambda.is>
+
+	PR gcov-profile/119553
+	* path-coverage.cc (find_paths): Return path count, don't
+	write to gcno, and rename to ...
+	(instrument_prime_paths): ... this.
+	* profile.cc (branch_prob): Write path counts to gcno.
+
+2025-03-31  Marek Polacek  <polacek@redhat.com>
+
+	PR c++/116960
+	PR c++/119303
+	* diagnostic.cc (diagnostic_context::report_diagnostic): Check for
+	non-zero m_lock later, after checking diagnostic_enabled.
+
+2025-03-31  Andre Simoes Dias Vieira  <andre.simoesdiasvieira@arm.com>
+
+	* config/aarch64/aarch64-option-extensions.def (SME): Remove SVE2 as
+	prerequisite and add in FCMA and F16FML.
+	* config/aarch64/aarch64.cc (aarch64_override_options_internal):
+	Diagnose use of SME without SVE2 and implicitly enable SVE2 when
+	enabling SME after streaming mode diagnosis.
+	* doc/invoke.texi (sme): Document that this can only be used with the
+	sve2 extension.
+
+2025-03-31  Richard Biener  <rguenther@suse.de>
+
+	PR tree-optimization/119532
+	* tree-tailcall.cc (process_assignment): FAIL for fixed-point
+	typed functions.
+
+2025-03-31  Tobias Burnus  <tburnus@baylibre.com>
+
+	PR middle-end/119541
+	* gimplify.cc (modify_call_for_omp_dispatch): Limit interop claues
+	processing by the number of append_args arguments.
+
+2025-03-31  Kyrylo Tkachov  <ktkachov@nvidia.com>
+
+	PR middle-end/119442
+	* expr.cc (store_constructor): Also allow element modes explicitly
+	accepted by target vec_duplicate pattern.
+
+2025-03-31  Richard Biener  <rguenther@suse.de>
+
+	PR target/119010
+	* config/i386/sse.md (*vmov<mode>_constm1_pternlog_false_dep):
+	Add mode attribute.
+
+2025-03-31  Richard Biener  <rguenther@suse.de>
+
+	PR target/119010
+	* config/i386/zn4zn5.md (znver4_sse_mov_fp_load,
+	znver5_sse_mov_fp_load): Also match ssemov2.
+
+2025-03-31  Richard Biener  <rguenther@suse.de>
+
+	PR target/119010
+	* config/i386/zn4zn5.md (znver4_sse_log_evex_store,
+	znver5_sse_log_evex_store): New reservations.
+
+2025-03-31  Richard Biener  <rguenther@suse.de>
+
+	PR target/119010
+	* config/i386/zn4zn5.md (znver4_sse_icvt): Use sseicvt.
+	(znver4_sse_icvt_store): Likewise.
+	(znver5_sse_icvt_store): Likewise.
+	(znver4_sse_icvt2): New.
+
+2025-03-31  Richard Biener  <rguenther@suse.de>
+
+	PR target/119010
+	* config/i386/zn4zn5.md (znver4_sse_div_pd,
+	znver4_sse_div_pd_load, znver5_sse_div_pd_load): Handle DFmode.
+
+2025-03-31  Richard Biener  <rguenther@suse.de>
+
+	PR target/119010
+	* config/i386/zn4zn5.md (znver4_sse_cmp_avx128,
+	znver5_sse_cmp_avx128): Handle TImode.
+	(znver4_sse_cmp_avx256, znver5_sse_cmp_avx256): Handle OImode.
+	(znver4_sse_cmp_avx512, znver5_sse_cmp_avx512): Handle XImode.
+
+2025-03-31  Richard Biener  <rguenther@suse.de>
+
+	PR target/119010
+	* config/i386/zn4zn5.md (znver4_sse_test): Drop test of
+	prefix_extra attribute.
+
+2025-03-31  Richard Biener  <rguenther@suse.de>
+
+	PR target/119010
+	* config/i386/zn4zn5.md (znver4_sse_log1): Rename to
+	znver4_sse_log1_store.
+	(znver5_sse_log1): Rename to znver5_sse_log1_store.
+	(znver4_sse_log1): New memory-less variant.
+
 2025-03-30  Sandra Loosemore  <sloosemore@baylibre.com>
 
 	* doc/extend.texi (New/Delete Builtins): Cleanup up the text and
