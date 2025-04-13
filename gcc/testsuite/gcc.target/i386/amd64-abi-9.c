@@ -1,18 +1,46 @@
 /* { dg-do compile { target { ! ia32 } } } */
 /* { dg-options "-O2 -mno-sse -mno-skip-rax-setup" } */
+
+// For sysv abi, eax holds the number of XMM registers used in the call.
+// Since sse is disabled, check that it is zeroed
 /* { dg-final { scan-assembler-times "xorl\[\\t \]*\\\%eax,\[\\t \]*%eax" 2 } } */
 
-void foo (const char *, ...);
+// For ms abi, the argument should go in edx
+/* { dg-final { scan-assembler-times "movl\[\\t \]*\\\$20,\[\\t \]*%edx" 2 } } */
+
+// For sysv abi, the argument should go in esi
+/* { dg-final { scan-assembler-times "movl\[\\t \]*\\\$20,\[\\t \]*%esi" 2 } } */
 
 void
-test1 (void)
+__attribute__((__sysv_abi__))
+fooSys (const char *, ...);
+
+void
+test_sys1 (void)
 {
-  foo ("%d", 20);
+  fooSys ("%d", 20);
 }
 
 int
-test2 (void)
+test_sys2 (void)
 {
-  foo ("%d", 20);
+  fooSys ("%d", 20);
+  return 3;
+}
+
+void
+__attribute__((__ms_abi__))
+fooMs (const char *, ...);
+
+void
+test_ms1 (void)
+{
+  fooMs ("%d", 20);
+}
+
+int
+test_ms2 (void)
+{
+  fooMs ("%d", 20);
   return 3;
 }
