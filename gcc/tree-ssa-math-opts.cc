@@ -2239,6 +2239,11 @@ pass_cse_sincos::execute (function *fun)
 		{
 		CASE_CFN_COS:
 		CASE_CFN_SIN:
+		  /* Don't optimize sin/cos to cexpi if errno semantics matter,
+		     since cexpi doesn't set errno like sin/cos can.  */
+		  if (flag_errno_math)
+		    break;
+		  gcc_fallthrough ();
 		CASE_CFN_CEXPI:
 		  arg = gimple_call_arg (stmt, 0);
 		  /* Make sure we have either sincos or cexp.  */
