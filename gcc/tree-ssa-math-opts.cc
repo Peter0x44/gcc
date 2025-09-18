@@ -1253,7 +1253,7 @@ execute_cse_sincos_1 (tree name)
 {
   gimple_stmt_iterator gsi;
   imm_use_iterator use_iter;
-  tree fndecl, res, type = NULL_TREE;
+  tree res, type = NULL_TREE;
   gimple *def_stmt, *use_stmt, *stmt;
   int seen_cos = 0, seen_sin = 0, seen_cexpi = 0;
   auto_vec<gimple *> stmts;
@@ -1302,27 +1302,96 @@ execute_cse_sincos_1 (tree name)
   if (seen_cos + seen_sin + seen_cexpi <= 1)
     return false;
 
-  /* Simply insert cexpi at the beginning of top_bb but not earlier than
-     the name def statement.  */
-  fndecl = mathfn_built_in (type, BUILT_IN_CEXPI);
-  if (!fndecl)
-    return false;
-  stmt = gimple_build_call (fndecl, 1, name);
-  res = make_temp_ssa_name (TREE_TYPE (TREE_TYPE (fndecl)), stmt, "sincostmp");
-  gimple_call_set_lhs (stmt, res);
+  machine_mode mode = TYPE_MODE (type);
+  tree sincos_fndecl = builtin_decl_explicit (BUILT_IN_SINCOS);
+  bool can_use_sincos = sincos_fndecl
+			&& (optab_handler (sincos_optab, mode)
+			    != CODE_FOR_nothing
+			    || targetm.libc_has_function (function_sincos,
+							  type));
 
-  def_stmt = SSA_NAME_DEF_STMT (name);
-  if (!SSA_NAME_IS_DEFAULT_DEF (name)
-      && gimple_code (def_stmt) != GIMPLE_PHI
-      && gimple_bb (def_stmt) == top_bb)
+  if (flag_errno_math && (seen_sin || seen_cos) && !can_use_sincos)
     {
-      gsi = gsi_for_stmt (def_stmt);
-      gsi_insert_after (&gsi, stmt, GSI_SAME_STMT);
+      /* We cannot rewrite sin and cos calls to cexpi if we have
+	 flag_errno_math because cexpi does not set errno.  */
+      return false;
+    }
+
+  if (can_use_sincos)
+    {
+      /* Generate sincos call if sincos is available.  */
+      tree complex_type = build_complex_type (type);
+
+      /* Create temporary variables for sin and cos results.  */
+      tree sin_result = create_tmp_var (type, "sincos_sin");
+      tree cos_result = create_tmp_var (type, "sincos_cos");
+
+      /* Create addresses to the temporary variables.  */
+      tree sin_addr = build_fold_addr_expr (sin_result);
+      tree cos_addr = build_fold_addr_expr (cos_result);
+
+      /* Generate sincos (angle, &sin_result, &cos_result) call.  */
+      stmt = gimple_build_call (sincos_fndecl, 3, name, sin_addr, cos_addr);
+
+      /* Insert the sincos call.  */
+      def_stmt = SSA_NAME_DEF_STMT (name);
+      if (!SSA_NAME_IS_DEFAULT_DEF (name)
+	  && gimple_code (def_stmt) != GIMPLE_PHI
+	  && gimple_bb (def_stmt) == top_bb)
+	{
+	  gsi = gsi_for_stmt (def_stmt);
+	  gsi_insert_after (&gsi, stmt, GSI_SAME_STMT);
+	}
+      else
+	{
+	  gsi = gsi_after_labels (top_bb);
+	  gsi_insert_before (&gsi, stmt, GSI_SAME_STMT);
+	}
+
+      /* Create SSA names for the results and load them from temporaries.  */
+      tree sin_ssa = make_ssa_name (type);
+      tree cos_ssa = make_ssa_name (type);
+
+      gimple *sin_load = gimple_build_assign (sin_ssa, sin_result);
+      gimple *cos_load = gimple_build_assign (cos_ssa, cos_result);
+
+      gsi_insert_after (&gsi, sin_load, GSI_NEW_STMT);
+      gsi_insert_after (&gsi, cos_load, GSI_NEW_STMT);
+
+      /* Create a complex number from sin and cos results so the replacement
+	 logic can extract them using REALPART_EXPR (cos) and
+	 IMAGPART_EXPR (sin).  */
+      res = make_temp_ssa_name (complex_type, NULL, "sincostmp");
+      gimple *complex_stmt = gimple_build_assign (res, COMPLEX_EXPR, cos_ssa,
+						  sin_ssa);
+      gsi_insert_after (&gsi, complex_stmt, GSI_NEW_STMT);
     }
   else
     {
-      gsi = gsi_after_labels (top_bb);
-      gsi_insert_before (&gsi, stmt, GSI_SAME_STMT);
+      tree cexpi_fndecl = mathfn_built_in (type, BUILT_IN_CEXPI);
+      if (!cexpi_fndecl)
+	return false;
+
+      /* Generate a call to cexpi instead - this is fine if we don't care
+	 about errno.  */
+      stmt = gimple_build_call (cexpi_fndecl, 1, name);
+      res = make_temp_ssa_name (TREE_TYPE (TREE_TYPE (cexpi_fndecl)), stmt,
+				"sincostmp");
+      gimple_call_set_lhs (stmt, res);
+
+      def_stmt = SSA_NAME_DEF_STMT (name);
+      if (!SSA_NAME_IS_DEFAULT_DEF (name)
+	  && gimple_code (def_stmt) != GIMPLE_PHI
+	  && gimple_bb (def_stmt) == top_bb)
+	{
+	  gsi = gsi_for_stmt (def_stmt);
+	  gsi_insert_after (&gsi, stmt, GSI_SAME_STMT);
+	}
+      else
+	{
+	  gsi = gsi_after_labels (top_bb);
+	  gsi_insert_before (&gsi, stmt, GSI_SAME_STMT);
+	}
     }
   sincos_stats.inserted++;
 
@@ -1353,6 +1422,7 @@ execute_cse_sincos_1 (tree name)
 	stmt = gimple_build_assign (gimple_call_lhs (use_stmt), rhs);
 
 	gsi = gsi_for_stmt (use_stmt);
+	unlink_stmt_vdef (use_stmt);
 	gsi_replace (&gsi, stmt, true);
 	if (gimple_purge_dead_eh_edges (gimple_bb (stmt)))
 	  cfg_changed = true;
@@ -2235,11 +2305,6 @@ pass_cse_sincos::execute (function *fun)
 		{
 		CASE_CFN_COS:
 		CASE_CFN_SIN:
-		  /* Don't optimize sin/cos to cexpi if errno semantics matter,
-		     since cexpi doesn't set errno like sin/cos can.  */
-		  if (flag_errno_math)
-		    break;
-		  gcc_fallthrough ();
 		CASE_CFN_CEXPI:
 		  arg = gimple_call_arg (stmt, 0);
 		  /* Make sure we have either sincos or cexp.  */
