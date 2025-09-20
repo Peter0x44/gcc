@@ -205,7 +205,6 @@ struct _vec_perm_simplify_seq
 typedef struct _vec_perm_simplify_seq *vec_perm_simplify_seq;
 
 static bool forward_propagate_addr_expr (tree, tree, bool);
-static bool fold_aggregate_assignment (gimple_stmt_iterator *);
 
 /* Set to true if we delete dead edges during the optimization.  */
 static bool cfg_changed;
@@ -973,141 +972,6 @@ forward_propagate_addr_expr (tree name, tree rhs, bool parent_single_use_p)
     }
 
   return all && has_zero_uses (name);
-}
-
-
-/* Try to optimize aggregate assignments by converting them to scalar
-   MEM_REF operations when profitable for vectorization.
-   This applies the same folding as memcpy to aggregate assignments.  */
-
-static bool
-fold_aggregate_assignment (gimple_stmt_iterator *gsi)
-{
-  gimple *stmt = gsi_stmt (*gsi);
-
-  if (!is_gimple_assign (stmt) || !gimple_assign_single_p (stmt))
-    return false;
-
-  tree lhs = gimple_assign_lhs (stmt);
-  tree rhs = gimple_assign_rhs1 (stmt);
-
-  /* Check if this is an aggregate assignment: *dest = *src
-     where both sides are aggregate types (can be MEM_REF or indirection).  */
-  bool lhs_is_indirect = (TREE_CODE (lhs) == INDIRECT_REF);
-  bool rhs_is_indirect = (TREE_CODE (rhs) == INDIRECT_REF);
-
-  if ((TREE_CODE (lhs) != MEM_REF && !lhs_is_indirect)
-      || (TREE_CODE (rhs) != MEM_REF && !rhs_is_indirect))
-    return false;
-
-  tree lhs_type = TREE_TYPE (lhs);
-  tree rhs_type = TREE_TYPE (rhs);
-
-  if (!AGGREGATE_TYPE_P (lhs_type) || !AGGREGATE_TYPE_P (rhs_type))
-    return false;
-
-  if (!types_compatible_p (lhs_type, rhs_type))
-    return false;
-
-  if (!tree_fits_uhwi_p (TYPE_SIZE_UNIT (lhs_type)))
-    return false;
-
-  unsigned HOST_WIDE_INT ilen = tree_to_uhwi (TYPE_SIZE_UNIT (lhs_type));
-  if (!pow2p_hwi (ilen) || ilen > MOVE_MAX)
-    return false;
-
-  tree lhs_base = TREE_OPERAND (lhs, 0);
-  tree rhs_base = TREE_OPERAND (rhs, 0);
-
-  unsigned int lhs_align = get_pointer_alignment (lhs_base);
-  unsigned int rhs_align = get_pointer_alignment (rhs_base);
-
-  scalar_int_mode imode;
-  machine_mode mode;
-  if (!int_mode_for_size (ilen * BITS_PER_UNIT, 0).exists (&imode)
-      || !bitwise_mode_for_size (ilen * BITS_PER_UNIT).exists (&mode)
-      || !known_eq (GET_MODE_BITSIZE (mode), ilen * BITS_PER_UNIT))
-    return false;
-
-  if ((lhs_align < GET_MODE_ALIGNMENT (mode)
-       && targetm.slow_unaligned_access (mode, lhs_align)
-       && optab_handler (movmisalign_optab, mode) == CODE_FOR_nothing)
-      || (rhs_align < GET_MODE_ALIGNMENT (mode)
-	  && targetm.slow_unaligned_access (mode, rhs_align)
-	  && optab_handler (movmisalign_optab, mode) == CODE_FOR_nothing))
-    return false;
-
-  tree type = bitwise_type_for_mode (mode);
-  tree srctype = type;
-  tree desttype = type;
-
-  if (rhs_align < GET_MODE_ALIGNMENT (mode))
-    srctype = build_aligned_type (type, rhs_align);
-  if (lhs_align < GET_MODE_ALIGNMENT (mode))
-    desttype = build_aligned_type (type, lhs_align);
-
-  tree off0 = build_int_cst (build_pointer_type_for_mode (char_type_node,
-							  ptr_mode, true), 0);
-
-  tree srcmem, destmem;
-
-  if (rhs_is_indirect)
-    {
-      srcmem = fold_build2 (MEM_REF, srctype, rhs_base, off0);
-    }
-  else
-    {
-      tree rhs_offset = TREE_OPERAND (rhs, 1);
-      srcmem = fold_build2 (MEM_REF, srctype, rhs_base, rhs_offset);
-    }
-
-  if (lhs_is_indirect)
-    {
-      destmem = fold_build2 (MEM_REF, desttype, lhs_base, off0);
-    }
-  else
-    {
-      tree lhs_offset = TREE_OPERAND (lhs, 1);
-      destmem = fold_build2 (MEM_REF, desttype, lhs_base, lhs_offset);
-    }
-  gimple *new_stmt;
-  if (is_gimple_reg_type (srctype))
-    {
-      new_stmt = gimple_build_assign (NULL_TREE, srcmem);
-      tree tmp_var = make_ssa_name (srctype, new_stmt);
-      gimple_assign_set_lhs (new_stmt, tmp_var);
-      gimple_set_vuse (new_stmt, gimple_vuse (stmt));
-      gimple_set_location (new_stmt, gimple_location (stmt));
-      gsi_insert_before (gsi, new_stmt, GSI_SAME_STMT);
-
-      new_stmt = gimple_build_assign (destmem, tmp_var);
-      gimple_move_vops (new_stmt, stmt);
-      gimple_set_location (new_stmt, gimple_location (stmt));
-      gsi_insert_before (gsi, new_stmt, GSI_SAME_STMT);
-      gsi_remove (gsi, true);
-    }
-  else
-    {
-      new_stmt = gimple_build_assign (destmem, srcmem);
-      gimple_move_vops (new_stmt, stmt);
-      gimple_set_location (new_stmt, gimple_location (stmt));
-      gsi_insert_before (gsi, new_stmt, GSI_SAME_STMT);
-      gsi_remove (gsi, true);
-    }
-
-  if (dump_file && (dump_flags & TDF_DETAILS))
-    {
-      fprintf (dump_file,
-	       "Converted aggregate assignment to scalar MEM_REF:\n");
-      fprintf (dump_file, "  Original: ");
-      print_gimple_stmt (dump_file, stmt, 0, dump_flags);
-      fprintf (dump_file, "  Size: %u bytes, Mode: %s\n",
-	       (unsigned)ilen, GET_MODE_NAME (mode));
-    }
-
-  statistics_counter_event (cfun, "aggregate assignment to scalar MEM_REF", 1);
-
-  return true;
 }
 
 
@@ -5063,10 +4927,6 @@ pass_forwprop::execute (function *fun)
 	  if (TREE_CODE (lhs) != SSA_NAME
 	      || has_zero_uses (lhs))
 	    {
-	      if (TREE_CODE (lhs) != SSA_NAME
-		  && fold_aggregate_assignment (&gsi))
-		continue;
-
 	      process_vec_perm_simplify_seq_list (&vec_perm_simplify_seq_list);
 	      gsi_next (&gsi);
 	      continue;
