@@ -1,1 +1,2 @@
 * -whitespace
+gcc.dg/cpp/pr88424.c text eol=crlf

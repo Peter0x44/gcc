@@ -944,6 +944,7 @@ _cpp_clean_line (cpp_reader *pfile)
       if (__builtin_expect (c == '\r', false) && s[1] == '\n')
 	{
 	  s++;
+	  d = (uchar *) s;  /* Move d to point to the LF, not the CR */
 	  if (s == buffer->rlimit)
 	    goto done;
 	}
