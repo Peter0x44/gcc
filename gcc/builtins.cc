@@ -172,6 +172,7 @@ static tree fold_builtin_abs (location_t, tree, tree);
 static tree fold_builtin_unordered_cmp (location_t, tree, tree, tree, enum tree_code,
 					enum tree_code);
 static tree fold_builtin_iseqsig (location_t, tree, tree);
+static tree fold_builtin_memalignment (location_t, tree);
 static tree fold_builtin_varargs (location_t, tree, tree*, int);
 
 static tree fold_builtin_strpbrk (location_t, tree, tree, tree, tree);
@@ -10119,6 +10120,33 @@ fold_builtin_iseqsig (location_t loc, tree arg0, tree arg1)
   return fold_build2_loc (loc, TRUTH_AND_EXPR, integer_type_node, cmp1, cmp2);
 }
 
+/* Fold a call to __builtin_memalignment().  ARG is the pointer argument.
+   The code is folded to: (size_t)ARG & -(size_t)ARG  */
+
+static tree
+fold_builtin_memalignment (location_t loc, tree arg)
+{
+  tree ptr_as_size, negated, result;
+
+  if (!validate_arg (arg, POINTER_TYPE))
+    return NULL_TREE;
+
+  /* Save ARG to ensure side effects occur only once.  */
+  arg = builtin_save_expr (arg);
+
+  /* Convert pointer to size_t.  */
+  ptr_as_size = fold_convert_loc (loc, size_type_node, arg);
+
+  /* Negate: -(size_t)ARG  */
+  negated = fold_build1_loc (loc, NEGATE_EXPR, size_type_node, ptr_as_size);
+
+  /* Compute: (size_t)ARG & -(size_t)ARG  */
+  result = fold_build2_loc (loc, BIT_AND_EXPR, size_type_node,
+			    ptr_as_size, negated);
+
+  return result;
+}
+
 /* Fold __builtin_{,s,u}{add,sub,mul}{,l,ll}_overflow, either into normal
    arithmetics if it can never overflow, or into internal functions that
    return both result of arithmetics and overflowed boolean flag in
@@ -10787,6 +10815,9 @@ fold_builtin_1 (location_t loc, tree expr, tree fndecl, tree arg0)
     case BUILT_IN_PARITYG:
     case BUILT_IN_POPCOUNTG:
       return fold_builtin_bit_query (loc, fcode, arg0, NULL_TREE);
+
+    case BUILT_IN_MEMALIGNMENT:
+      return fold_builtin_memalignment (loc, arg0);
 
     default:
       break;
@@ -12399,6 +12430,7 @@ is_inexpensive_builtin (tree decl)
       case BUILT_IN_PARITYLL:
       case BUILT_IN_PARITYIMAX:
       case BUILT_IN_PARITY:
+      case BUILT_IN_MEMALIGNMENT:
       case BUILT_IN_LABS:
       case BUILT_IN_LLABS:
       case BUILT_IN_PREFETCH:
