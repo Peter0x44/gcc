@@ -1,0 +1,158 @@
+name: GCC CI
+
+on:
+  push:
+    branches: [ master, trunk, releases/** ]
+  pull_request:
+    branches: [ master, trunk ]
+  workflow_dispatch:
+
+# Cancel in-progress runs for the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build GCC (${{ matrix.languages }})
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - languages: c,c++
+            check-target: check-gcc check-g++
+          - languages: c,c++,fortran
+            check-target: check-gcc check-g++ check-fortran
+
+    env:
+      # Number of parallel jobs for make
+      NPROCS: 4
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            flex \
+            bison \
+            libgmp-dev \
+            libmpfr-dev \
+            libmpc-dev \
+            libisl-dev \
+            libzstd-dev \
+            dejagnu \
+            texinfo \
+            gnat \
+            gfortran \
+            autogen
+
+      - name: Download prerequisites
+        run: |
+          ./contrib/download_prerequisites
+
+      - name: Create build directory
+        run: mkdir -p objdir
+
+      - name: Configure GCC
+        working-directory: objdir
+        run: |
+          ../configure \
+            --prefix=${{ github.workspace }}/install \
+            --enable-languages=${{ matrix.languages }} \
+            --disable-bootstrap \
+            --disable-multilib \
+            --disable-libsanitizer \
+            --disable-libvtv \
+            --enable-checking=release \
+            --with-system-zlib
+
+      - name: Build GCC
+        working-directory: objdir
+        run: |
+          make -j$NPROCS
+
+      - name: Install GCC
+        working-directory: objdir
+        run: |
+          make install -j$NPROCS
+
+      - name: Run testsuite
+        working-directory: objdir
+        run: |
+          make -k ${{ matrix.check-target }} -j$NPROCS RUNTESTFLAGS="--ignore-missing-config" || true
+
+      - name: Generate test summary
+        if: always()
+        working-directory: objdir
+        run: |
+          # Find and display test summaries
+          find . -name "*.sum" -exec echo "=== {} ===" \; -exec tail -100 {} \;
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.languages }}
+          path: |
+            objdir/**/*.sum
+            objdir/**/*.log
+          retention-days: 7
+
+  bootstrap:
+    name: Bootstrap Build
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            flex \
+            bison \
+            libgmp-dev \
+            libmpfr-dev \
+            libmpc-dev \
+            libisl-dev \
+            libzstd-dev \
+            dejagnu \
+            texinfo \
+            autogen
+
+      - name: Download prerequisites
+        run: |
+          ./contrib/download_prerequisites
+
+      - name: Create build directory
+        run: mkdir -p objdir
+
+      - name: Configure GCC (bootstrap)
+        working-directory: objdir
+        run: |
+          ../configure \
+            --prefix=${{ github.workspace }}/install \
+            --enable-languages=c,c++ \
+            --disable-multilib \
+            --disable-libsanitizer \
+            --disable-libvtv \
+            --enable-checking=release \
+            --with-system-zlib
+
+      - name: Bootstrap build
+        working-directory: objdir
+        run: |
+          make -j4 bootstrap
+
+      - name: Install GCC
+        working-directory: objdir
+        run: |
+          make install -j4
