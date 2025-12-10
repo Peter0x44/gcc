@@ -5205,9 +5205,75 @@ warn_for_null_address (location_t location, tree op, tsubst_flags_t complain)
 	  || warning_suppressed_p (cop, OPT_Waddress))
 	return;
 
-      warned = warning_at (location, OPT_Waddress,
-			   "the address of %qD will never be NULL", cop);
+      /* Check if this is a lambda static thunk to avoid showing ugly internal names.  */
+      bool is_lambda = (TREE_CODE (cop) == FUNCTION_DECL
+			&& lambda_static_thunk_p (cop));
+      tree var_decl = NULL_TREE;
+      
+      if (is_lambda)
+	{
+	  /* For lambda in a variable vs direct lambda expression:
+	     - Direct: op is CALL_EXPR with TARGET_EXPR inside
+	     - Variable: op is CALL_EXPR with VAR_DECL inside
+	     We need to dig into the CALL_EXPR to find the VAR_DECL.  */
+	  tree orig = op;
+	  STRIP_NOPS (orig);
+	  
+	  /* If op is a CALL_EXPR (lambda conversion operator call),
+	     check its first argument which is ADDR_EXPR of the lambda object.  */
+	  if (TREE_CODE (orig) == CALL_EXPR && call_expr_nargs (orig) > 0)
+	    {
+	      tree arg0 = CALL_EXPR_ARG (orig, 0);
+	      if (TREE_CODE (arg0) == ADDR_EXPR)
+		{
+		  tree inner = TREE_OPERAND (arg0, 0);
+		  /* Check if it's a VAR_DECL (named variable) or TARGET_EXPR (temporary).  */
+		  if (TREE_CODE (inner) == VAR_DECL && DECL_NAME (inner))
+		    var_decl = inner;
+		}
+	    }
+	  
+	  if (var_decl)
+	    warned = warning_at (location, OPT_Waddress,
+				 "testing %qD converted to a function pointer "
+				 "will always evaluate as %<true%>", var_decl);
+	  else
+	    warned = warning_at (location, OPT_Waddress,
+				 "testing a lambda expression converted to a "
+				 "function pointer will always evaluate as %<true%>");
+	}
+      else
+	warned = warning_at (location, OPT_Waddress,
+			     "testing the address of %qD will always "
+			     "evaluate as %<true%>", cop);
       op = cop;
+      
+      /* Add fix-it hints for functions.  */
+      if (warned && TREE_CODE (cop) == FUNCTION_DECL)
+	{
+	  tree fntype = TREE_TYPE (cop);
+	  tree parms = TYPE_ARG_TYPES (fntype);
+	  location_t start = get_start (location);
+	  location_t finish = get_finish (location);
+	  /* Only suggest adding parentheses if the function takes no arguments.  */
+	  if (parms == void_list_node)
+	    {
+	      /* Create a location with caret at the end, range from start
+		 to finish, giving ~~~^ underlining.  */
+	      location_t insert_loc = make_location (finish, start, finish);
+	      gcc_rich_location richloc (insert_loc);
+	      richloc.add_fixit_insert_after ("()");
+	      if (is_lambda && var_decl)
+		inform (&richloc, "did you mean to call %qD?", var_decl);
+	      else if (is_lambda)
+		inform (&richloc, "did you mean to call it?");
+	      else
+		inform (&richloc, "did you mean to call %qD?", cop);
+	    }
+	  if (!is_lambda)
+	    inform (DECL_SOURCE_LOCATION (cop), "%qD declared here", cop);
+	}
+      return;
     }
   else if (TREE_CODE (cop) == POINTER_PLUS_EXPR)
     {
