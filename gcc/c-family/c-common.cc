@@ -3660,11 +3660,34 @@ c_common_truthvalue_conversion (location_t location, tree expr)
 	    && !warning_suppressed_p (expr, OPT_Waddress)
 	    && !warning_suppressed_p (inner, OPT_Waddress))
 	  {
+	    /* Use the location from the ADDR_EXPR if available, as it should
+	       point to the actual function name usage.  */
+	    location_t warn_loc = EXPR_HAS_LOCATION (expr)
+	      ? EXPR_LOCATION (expr) : location;
 	    /* Common Ada programmer's mistake.	 */
-	    warning_at (location,
+	    warning_at (warn_loc,
 			OPT_Waddress,
-			"the address of %qD will always evaluate as %<true%>",
+			"testing the address of %qD will always evaluate as %<true%>",
 			inner);
+	    if (TREE_CODE (inner) == FUNCTION_DECL)
+	      {
+		tree fntype = TREE_TYPE (inner);
+		tree parms = TYPE_ARG_TYPES (fntype);
+		location_t start = get_start (warn_loc);
+		location_t finish = get_finish (warn_loc);
+		/* Check if function takes no arguments (parms is void_list_node)
+		   or takes arguments.  */
+		if (parms == void_list_node)
+		  {
+		    /* Create a location with caret at the end, range from start
+		       to finish, giving ~~~^ underlining.  */
+		    location_t insert_loc = make_location (finish, start, finish);
+		    gcc_rich_location richloc (insert_loc);
+		    richloc.add_fixit_insert_after ("()");
+		    inform (&richloc,
+			    "did you mean to call %qD?", inner);
+		  }
+	      }
 	    suppress_warning (inner, OPT_Waddress);
 	    return truthvalue_true_node;
 	  }
