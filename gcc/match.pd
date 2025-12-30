@@ -7995,56 +7995,43 @@ DEFINE_INT_AND_FLOAT_ROUND_FN (RINT)
       (eqcmp (bit_and @1 { wide_int_to_tree (ty, mask - rhs); })
 	     { build_zero_cst (ty); }))))))
 
-/* (X & MASK) == VALUE -> X < BOUND for signed integer types when:
-   - MASK has the form ~((1 << n) - 1), i.e., consecutive high bits set
-   - VALUE equals the signed minimum for the masked bits (only the MSB
-     of MASK is set)
-   - VALUE equals TYPE_MIN (the signed minimum for the type)
+/* Fold (X & C1) cmp C2 into X cmp C3 when C1 is a "negated power of 2"
+   (consecutive high bits set, i.e., ~(pow2 - 1)).  */
 
-   For example: (0xC0 & x) == 0x80 for signed char
-   This checks if x has bit pattern 10XXXXXX, i.e., x in [-128, -65].
-   Since -128 is TYPE_MIN, this simplifies to x < -64.
+/* (X & -POW2) s> C --> X s> ~(-POW2) when C in [0, ~(-POW2)].  */
+(simplify
+ (gt (bit_and @0 INTEGER_CST@1) INTEGER_CST@2)
+ (if (!TYPE_UNSIGNED (TREE_TYPE (@2)))
+  (with { wide_int mask = wi::to_wide (@1);
+	  wide_int cmpval = wi::to_wide (@2);
+	  unsigned prec = TYPE_PRECISION (TREE_TYPE (@0)); }
+   (if (wi::popcount (mask) + wi::ctz (mask) == prec
+	&& wi::leu_p (cmpval, wi::bit_not (mask)))
+    (gt @0 { wide_int_to_tree (TREE_TYPE (@0), wi::bit_not (mask)); })))))
 
-   The transformation also applies to NE:
-   (X & MASK) != VALUE -> X >= BOUND  */
+/* (X & -POW2) s< C --> X s< -(-POW2) when C in [1, -(-POW2)].  */
+(simplify
+ (lt (bit_and @0 INTEGER_CST@1) INTEGER_CST@2)
+ (if (!TYPE_UNSIGNED (TREE_TYPE (@2)))
+  (with { wide_int mask = wi::to_wide (@1);
+	  wide_int cmpval = wi::to_wide (@2);
+	  unsigned prec = TYPE_PRECISION (TREE_TYPE (@0)); }
+   (if (wi::popcount (mask) + wi::ctz (mask) == prec
+	&& !wi::only_sign_bit_p (cmpval)
+	&& !wi::only_sign_bit_p (mask)
+	&& wi::leu_p (cmpval - 1, wi::bit_not (mask)))
+    (lt @0 { wide_int_to_tree (TREE_TYPE (@0), wi::neg (mask)); })))))
+
+/* (X & -POW2) == -POW2 --> X >= -POW2 (unsigned).  */
 (for eqne (eq ne)
-     cmp  (lt ge)
+     cmp  (ge lt)
  (simplify
-  (eqne (bit_and:s @0 INTEGER_CST@1) INTEGER_CST@2)
-  (if (INTEGRAL_TYPE_P (TREE_TYPE (@0))
-       && !TYPE_UNSIGNED (TREE_TYPE (@0)))
-   (with
-    {
-     tree ty = TREE_TYPE (@0);
-     unsigned prec = TYPE_PRECISION (ty);
-     wide_int mask = wi::to_wide (@1, prec);
-     wide_int value = wi::to_wide (@2, prec);
-     wide_int type_min = wi::min_value (prec, SIGNED);
-     /* Check that MASK is a high-bit mask: ~((1 << n) - 1) for some n.
-	MASK should have form 11...1100...00 (consecutive 1s from MSB).
-	This is true iff popcount(mask) + ctz(mask) == precision.  */
-     int mask_popcount = wi::popcount (mask);
-     int mask_ctz = wi::ctz (mask);
-     bool is_high_mask = (mask != 0
-			  && (unsigned)(mask_popcount + mask_ctz) == prec);
-     /* VALUE must be the signed min for the masked bits, i.e., only
-	the MSB of MASK is set.  For a high-bit mask, this is the bit
-	at position (prec - 1), which equals TYPE_MIN.  */
-     bool value_is_type_min = (value == type_min);
-     /* Also verify VALUE has exactly the MSB set (which for signed
-	types means VALUE == TYPE_MIN when MASK includes the sign bit).  */
-     wide_int msb_only = wi::set_bit_in_zero (prec - 1, prec);
-     bool value_is_msb = (value == msb_only);
-     /* Compute the upper bound: VALUE | ~MASK gives the maximum value
-	matching the pattern.  We want x < (upper_bound + 1).  */
-     wide_int upper_bound = value | wi::bit_not (mask);
-     wide_int bound = upper_bound + 1;
-     /* Ensure the bound doesn't overflow (i.e., upper_bound != TYPE_MAX).  */
-     wide_int type_max = wi::max_value (prec, SIGNED);
-     bool no_overflow = (upper_bound != type_max);
-    }
-    (if (is_high_mask && value_is_msb && value_is_type_min && no_overflow)
-     (cmp @0 { wide_int_to_tree (ty, bound); }))))))
+  (eqne (bit_and @0 INTEGER_CST@1) @1)
+  (if (TYPE_UNSIGNED (TREE_TYPE (@0)))
+   (with { wide_int mask = wi::to_wide (@1);
+	   unsigned prec = TYPE_PRECISION (TREE_TYPE (@0)); }
+    (if (wi::popcount (mask) + wi::ctz (mask) == prec)
+     (cmp @0 @1))))))
 
 /* -A CMP -B -> B CMP A.  */
 (for cmp (tcc_comparison)
