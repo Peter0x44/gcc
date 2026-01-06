@@ -15520,7 +15520,9 @@ enclosing_instantiation_of (tree tctx)
   for (; fn; fn = decl_function_context (fn))
     if (DECL_SOURCE_LOCATION (fn) == DECL_SOURCE_LOCATION (tctx))
       return fn;
-  gcc_unreachable ();
+
+  /* If we can't find the enclosing instantiation, return NULL.  */
+  return NULL_TREE;
 }
 
 /* Substitute the ARGS into the T, which is a _DECL.  Return the
@@ -15938,6 +15940,12 @@ tsubst_decl (tree t, tree args, tsubst_flags_t complain,
 	    if (TREE_STATIC (t))
 	      {
 		tree fn = enclosing_instantiation_of (DECL_CONTEXT (t));
+		if (fn == NULL_TREE)
+		  /* We're in a context where current_function_decl is cleared
+		     (e.g., synthesized_method_walk); use tsubst_decl to find
+		     the enclosing function instantiation.  */
+		  fn = tsubst_decl (DECL_CONTEXT (t), args, complain,
+				    use_spec_table);
 		if (fn != current_function_decl)
 		  ctx = fn;
 	      }
