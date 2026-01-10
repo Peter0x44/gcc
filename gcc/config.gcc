@@ -1300,6 +1300,7 @@ aarch64-*-mingw*)
 	target_gtfiles="$target_gtfiles \$(srcdir)/config/mingw/winnt-dll.cc"
 	extra_options="${extra_options} mingw/cygming.opt mingw/mingw.opt"
 	extra_objs="${extra_objs} aarch64-abi-ms.o winnt.o winnt-dll.o"
+	extra_gcc_objs="driver-cygming.o"
 	c_target_objs="${c_target_objs} msformat-c.o"
 	cxx_target_objs="${cxx_target_objs} msformat-c.o"
 	d_target_objs="${d_target_objs} winnt-d.o"
@@ -2315,6 +2316,7 @@ i[34567]86-*-mingw* | x86_64-*-mingw*)
 			;;
 	esac
 	extra_objs="${extra_objs} winnt.o winnt-stubs.o winnt-dll.o"
+	extra_gcc_objs="driver-cygming.o"
 	c_target_objs="${c_target_objs} msformat-c.o"
 	cxx_target_objs="${cxx_target_objs} winnt-cxx.o msformat-c.o"
 	gas=yes

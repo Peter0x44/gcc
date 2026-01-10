@@ -264,8 +264,9 @@ still needed for compilation.  */
    0, 0, 0}, \
   {".res", "@windres-res", 0, 0, 0}, \
   {"@windres-res", \
-   "%{!E:%{!M:%{!MM:windres -J res -O coff -F pe-aarch64 \
-      %{c:%W{o*}%{!o*:-o %w%b%O}}%{!c:-o %d%w%u%O} %i}}}", \
+   /* Check if this is a COFF object incorrectly named .res or an actual
+      .res file. Emit appropriate warning. See PR123504. */ \
+   "%:check-res-file(%i)", \
    0, 0, 0},
 
 #endif

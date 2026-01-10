@@ -24,3 +24,6 @@ winnt-c.o: config/winnt-c.cc $(CONFIG_H) $(SYSTEM_H) coretypes.h \
 winnt-rust.o: $(srcdir)/config/winnt-rust.cc
 	$(COMPILE) $<
 	$(POSTCOMPILE)
+
+driver-cygming.o: $(srcdir)/config/mingw/driver-cygming.cc $(CONFIG_H)
+	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $<

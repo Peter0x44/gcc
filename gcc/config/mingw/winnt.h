@@ -18,6 +18,8 @@ http://www.gnu.org/licenses/.  */
 #ifndef GCC_MINGW_WINNT_H
 #define GCC_MINGW_WINNT_H
 
+extern const char *cygming_check_res_file (int argc, const char **argv);
+
 #ifndef USED_FOR_TARGET
 
 extern tree aarch64_handle_ms_abi_attribute (tree *, tree, tree, int, bool *);

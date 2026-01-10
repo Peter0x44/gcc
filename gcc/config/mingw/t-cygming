@@ -20,6 +20,10 @@
 # doing the build, it may not be installed yet.
 LIMITS_H_TEST = true
 
+driver-cygming.o: $(srcdir)/config/mingw/driver-cygming.cc $(CONFIG_H)
+	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+	$(srcdir)/config/mingw/driver-cygming.cc
+
 winnt.o: $(srcdir)/config/mingw/winnt.cc $(CONFIG_H) $(SYSTEM_H) coretypes.h \
   $(TM_H) $(RTL_H) $(REGS_H) hard-reg-set.h output.h $(TREE_H) flags.h \
   $(TM_P_H) $(HASH_TABLE_H) $(GGC_H) $(LTO_STREAMER_H)

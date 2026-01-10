@@ -639,7 +639,8 @@ extern GTY(()) tree x86_mfence;
 /* In driver-i386.cc.  */
 extern const char *host_detect_local_cpu (int argc, const char **argv);
 #define EXTRA_SPEC_FUNCTIONS \
-  { "local_cpu_detect", host_detect_local_cpu },
+  { "local_cpu_detect", host_detect_local_cpu }, \
+  { "check-res-file", cygming_check_res_file },
 #define HAVE_LOCAL_CPU_DETECT
 #endif
 

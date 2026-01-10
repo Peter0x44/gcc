@@ -1570,7 +1570,8 @@ extern const char *is_host_cpu_not_armv8_base (int argc, const char **argv);
 #define AARCH64_BASE_SPEC_FUNCTIONS		       \
   { "rewrite_march", aarch64_rewrite_march },          \
   { "rewrite_mcpu",            aarch64_rewrite_mcpu }, \
-  { "is_local_not_armv8_base", is_host_cpu_not_armv8_base },
+  { "is_local_not_armv8_base", is_host_cpu_not_armv8_base }, \
+  { "check-res-file", cygming_check_res_file },
 
 
 #define ASM_CPU_SPEC \
