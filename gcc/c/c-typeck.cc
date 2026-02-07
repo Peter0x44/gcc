@@ -14096,7 +14096,7 @@ maybe_warn_for_null_address (location_t loc, tree op, tree_code code)
       else
 	warning_at (loc, OPT_Waddress,
 		    "the comparison will always evaluate as %<true%> "
-		    "for the address of %qE will never be NULL",
+		    "because the address of %qE will never be NULL",
 		    op);
       return;
     }
@@ -14125,20 +14125,38 @@ maybe_warn_for_null_address (location_t loc, tree op, tree_code code)
       || from_macro_expansion_at (loc))
     return;
 
+  auto_diagnostic_group sentinel;
+  
   bool w;
   if (code == EQ_EXPR)
     w = warning_at (loc, OPT_Waddress,
 		    "the comparison will always evaluate as %<false%> "
-		    "for the address of %qE will never be NULL",
+		    "because the address of %qE will never be NULL",
 		    op);
   else
     w = warning_at (loc, OPT_Waddress,
 		    "the comparison will always evaluate as %<true%> "
-		    "for the address of %qE will never be NULL",
+		    "because the address of %qE will never be NULL",
 		    op);
 
-  if (w && DECL_P (op))
-    inform (DECL_SOURCE_LOCATION (op), "%qD declared here", op);
+  if (w && TREE_CODE (op) == FUNCTION_DECL)
+    {
+      tree fntype = TREE_TYPE (op);
+      tree parms = TYPE_ARG_TYPES (fntype);
+      /* Only suggest adding parentheses if the function takes no arguments.  */
+      if (parms == void_list_node)
+	{
+	  location_t start = get_start (loc);
+	  location_t finish = get_finish (loc);
+	  /* Create a location with caret at the end, range from start
+	     to finish, giving ~~~^ underlining.  */
+	  location_t insert_loc = make_location (finish, start, finish);
+	  gcc_rich_location richloc (insert_loc);
+	  richloc.add_fixit_insert_after ("()");
+	  inform (&richloc, "did you mean to call %qD?", op);
+	}
+      inform (DECL_SOURCE_LOCATION (op), "%qD declared here", op);
+    }
 }
 
 /* Build a binary-operation expression without default conversions.

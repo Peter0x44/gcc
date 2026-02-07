@@ -169,7 +169,7 @@ complete_type_or_else (tree type, tree value)
   return complete_type_or_maybe_complain (type, value, tf_warning_or_error);
 }
 
-
+
 /* Return the common type of two parameter lists.
    We assume that comptypes has already been done and returned 1;
    if that isn't so, this may crash.
@@ -1160,7 +1160,7 @@ common_pointer_type (tree t1, tree t2)
 				 error_mark_node, error_mark_node,
                                  CPO_CONVERSION, tf_warning_or_error);
 }
-
+
 /* Compare two exception specifier types for exactness or subsetness, if
    allowed. Returns false for mismatch, true for match (same, or
    derived and !exact).
@@ -2130,7 +2130,7 @@ comp_cv_qual_signature (tree type1, tree type2)
   else
     return 0;
 }
-
+
 /* Subroutines of `comptypes'.  */
 
 /* Return true if two parameter type lists PARMS1 and PARMS2 are
@@ -2160,7 +2160,7 @@ compparms (const_tree parms1, const_tree parms2)
   return true;
 }
 
-
+
 /* Process a sizeof or alignof expression where the operand is a type.
    STD_ALIGNOF indicates whether an alignof has C++11 (minimum alignment)
    or GNU (preferred alignment) semantics; it is ignored if OP is
@@ -2460,7 +2460,7 @@ cxx_alignas_expr (tree e)
   return cxx_constant_value (e);
 }
 
-
+
 /* EXPR is being used in a context that is not a function call.
    Enforce:
 
@@ -4388,7 +4388,7 @@ build_array_ref (location_t loc, tree array, tree idx)
 {
   return cp_build_array_ref (loc, array, idx, tf_warning_or_error);
 }
-
+
 /* Resolve a pointer to member function.  INSTANCE is the object
    instance to use, if the member points to a virtual member.
 
@@ -4784,7 +4784,7 @@ cp_build_function_call_vec (tree function, vec<tree, va_gc> **params,
 
   return ret;
 }
-
+
 /* Subroutine of convert_arguments.
    Print an error message about a wrong number of arguments.  */
 
@@ -4999,7 +4999,7 @@ convert_arguments (tree typelist, vec<tree, va_gc> **values, tree fndecl,
 
   return (int) i;
 }
-
+
 /* Build a binary-operation expression, after performing default
    conversions on the operands.  CODE is the kind of expression to
    build.  ARG1 and ARG2 are the arguments.  ARG1_CODE and ARG2_CODE
@@ -5205,6 +5205,60 @@ build_vec_cmp (tree_code code, tree type,
   return build3 (VEC_COND_EXPR, type, cmp, minus_one_vec, zero_vec);
 }
 
+/* Helper function to extract the lambda variable declaration from OP.
+   Returns the VAR_DECL if OP is a lambda stored in a named variable,
+   or NULL_TREE if it's a non-variable lambda expression or not a lambda.  */
+
+static tree
+extract_lambda_var_decl (tree op)
+{
+  tree orig = op;
+  STRIP_NOPS (orig);
+
+  /* If op is a CALL_EXPR (lambda conversion operator call),
+     check its first argument which is ADDR_EXPR of the lambda object.  */
+  if (TREE_CODE (orig) == CALL_EXPR && call_expr_nargs (orig) > 0)
+    {
+      tree arg0 = CALL_EXPR_ARG (orig, 0);
+      if (TREE_CODE (arg0) == ADDR_EXPR)
+	{
+	  tree inner = TREE_OPERAND (arg0, 0);
+	  /* Check if it's a VAR_DECL (named variable) or TARGET_EXPR (temporary).  */
+	  if (TREE_CODE (inner) == VAR_DECL && DECL_NAME (inner))
+	    return inner;
+	}
+    }
+
+  return NULL_TREE;
+}
+
+/* Helper function to suggest calling a function with ().
+   Emits an inform diagnostic with a fix-it hint showing where to insert ().
+   LOCATION is where to place the fix-it, FUNC_DECL is the function,
+   IS_LAMBDA indicates if this is a lambda, VAR_DECL is the lambda variable
+   (if any).  */
+
+static void
+suggest_function_call_fixit (location_t location, tree func_decl,
+			      bool is_lambda, tree var_decl)
+{
+  location_t start = get_start (location);
+  location_t finish = get_finish (location);
+
+  /* Create a location with caret at the end, range from start
+     to finish, giving ~~~^ underlining.  */
+  location_t insert_loc = make_location (finish, start, finish);
+  gcc_rich_location richloc (insert_loc);
+  richloc.add_fixit_insert_after ("()");
+
+  if (is_lambda && var_decl)
+    inform (&richloc, "did you mean to call %qD?", var_decl);
+  else if (is_lambda)
+    inform (&richloc, "did you mean to call it?");
+  else
+    inform (&richloc, "did you mean to call %qD?", func_decl);
+}
+
 /* Possibly warn about an address never being NULL.  */
 
 static void
@@ -5274,9 +5328,43 @@ warn_for_null_address (location_t location, tree op, tsubst_flags_t complain)
 	  || warning_suppressed_p (cop, OPT_Waddress))
 	return;
 
-      warned = warning_at (location, OPT_Waddress,
-			   "the address of %qD will never be NULL", cop);
-      op = cop;
+      auto_diagnostic_group sentinel;
+
+      /* Check if this is a lambda static thunk to avoid showing ugly internal names.  */
+      bool is_lambda = (TREE_CODE (cop) == FUNCTION_DECL
+			&& lambda_static_thunk_p (cop));
+      tree var_decl = NULL_TREE;
+
+      if (is_lambda)
+	var_decl = extract_lambda_var_decl (op);
+
+      if (is_lambda && var_decl)
+	warned = warning_at (location, OPT_Waddress,
+			     "testing %qD converted to a function pointer "
+			     "will always evaluate as %<true%>", var_decl);
+      else if (is_lambda)
+	warned = warning_at (location, OPT_Waddress,
+			     "testing a lambda expression converted to a "
+			     "function pointer will always evaluate as %<true%>");
+      else
+	warned = warning_at (location, OPT_Waddress,
+			     "testing the address of %qD will always "
+			     "evaluate as %<true%>", cop);
+
+      /* Add fix-it hints for functions.  */
+      if (warned && TREE_CODE (cop) == FUNCTION_DECL)
+	{
+	  tree fntype = TREE_TYPE (cop);
+	  tree parms = TYPE_ARG_TYPES (fntype);
+
+	  /* Only suggest adding parentheses if the function takes no arguments.  */
+	  if (parms == void_list_node)
+	    suggest_function_call_fixit (location, cop, is_lambda, var_decl);
+
+	  if (!is_lambda)
+	    inform (DECL_SOURCE_LOCATION (cop), "%qD declared here", cop);
+	}
+      return;
     }
   else if (TREE_CODE (cop) == POINTER_PLUS_EXPR)
     {
@@ -7077,7 +7165,7 @@ build_x_shufflevector (location_t loc, vec<tree, va_gc> *args,
     }
   return exp;
 }
-
+
 /* Return a tree for the sum or difference (RESULTCODE says which)
    of pointer PTROP and integer INTOP.  */
 
@@ -7209,7 +7297,7 @@ pointer_diff (location_t loc, tree op0, tree op1, tree ptrtype,
 		       cp_convert (inttype, op1, complain));
   return cp_convert (restype, result, complain);
 }
-
+
 /* Construct and perhaps optimize a tree representation
    for a unary operation.  CODE, a tree_code, specifies the operation
    and XARG is the operand.  */
@@ -8215,7 +8303,7 @@ unary_complex_lvalue (enum tree_code code, tree arg)
   /* Don't let anything else be handled specially.  */
   return NULL_TREE;
 }
-
+
 /* Mark EXP saying that we need to be able to take the
    address of it; it should not be allocated in a register.
    Value is true if successful.  ARRAY_REF_P is true if this
@@ -8306,7 +8394,7 @@ cxx_mark_addressable (tree exp, bool array_ref_p)
 	return true;
     }
 }
-
+
 /* Build and return a conditional expression IFEXP ? OP1 : OP2.  */
 
 tree
@@ -8339,7 +8427,7 @@ build_x_conditional_expr (location_t loc, tree ifexp, tree op1, tree op2,
     }
   return expr;
 }
-
+
 /* Given a list of expressions, return a compound expression
    that performs them all and returns the value of the last of them.  */
 
@@ -10955,7 +11043,7 @@ convert_for_initialization (tree exp, tree type, tree rhs, int flags,
   return convert_for_assignment (type, rhs, errtype, fndecl, parmnum,
 				 complain, flags);
 }
-
+
 /* If RETVAL is the address of, or a reference to, a local variable or
    temporary give an appropriate warning and return true.  */
 
@@ -11823,7 +11911,7 @@ check_return_expr (tree retval, bool *no_warning, bool *dangling)
   return retval;
 }
 
-
+
 /* Returns nonzero if the pointer-type FROM can be converted to the
    pointer-type TO via a qualification conversion.  If CONSTP is -1,
    then we return nonzero if the pointers are similar, and the
