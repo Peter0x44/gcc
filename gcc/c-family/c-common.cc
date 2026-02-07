@@ -3570,6 +3570,48 @@ decl_with_nonnull_addr_p (const_tree expr)
   return true;
 }
 
+/* Emit a fix-it hint suggesting to call a function with ().
+   LOC is the location of the function expression.  DECL is the function
+   declaration.  IS_LAMBDA indicates whether this is a lambda.  LAMBDA_VAR
+   is the variable holding the lambda (if any), or NULL_TREE.
+   Only emits the hint if the function takes no arguments.  */
+
+void
+maybe_suggest_function_call (location_t loc, tree decl, bool is_lambda,
+			      tree lambda_var)
+{
+  if (TREE_CODE (decl) != FUNCTION_DECL)
+    return;
+
+  tree fntype = TREE_TYPE (decl);
+  tree parms = TYPE_ARG_TYPES (fntype);
+
+  /* Only suggest adding parentheses if the function takes no arguments.  */
+  if (parms == void_list_node)
+    {
+      location_t start = get_start (loc);
+      location_t finish = get_finish (loc);
+      /* Position the fix-it caret at the end of the expression,
+	 underneath (), like: ~~~^.  */
+      location_t insert_loc = make_location (finish, start, finish);
+      gcc_rich_location richloc (insert_loc);
+      richloc.add_fixit_insert_after ("()");
+
+      if (is_lambda && lambda_var)
+	inform (&richloc, "did you mean to call %qD?", lambda_var);
+      else if (is_lambda)
+	inform (&richloc, "did you mean to call it?");
+      else
+	inform (&richloc, "did you mean to call %qD?", decl);
+    }
+
+  /* Emit "declared here" note for functions and lambda variables.  */
+  if (!is_lambda)
+    inform (DECL_SOURCE_LOCATION (decl), "%qD declared here", decl);
+  else if (lambda_var)
+    inform (DECL_SOURCE_LOCATION (lambda_var), "%qD declared here", lambda_var);
+}
+
 /* Prepare expr to be an argument of a TRUTH_NOT_EXPR,
    or for an `if' or `while' statement or ?..: exp.  It should already
    have been validated to be of suitable type; otherwise, a bad
@@ -3658,11 +3700,16 @@ c_common_truthvalue_conversion (location_t location, tree expr)
 	    && !warning_suppressed_p (expr, OPT_Waddress)
 	    && !warning_suppressed_p (inner, OPT_Waddress))
 	  {
+	    location_t warn_loc = EXPR_LOC_OR_LOC (expr, location);
 	    /* Common Ada programmer's mistake.	 */
-	    warning_at (location,
-			OPT_Waddress,
-			"the address of %qD will always evaluate as %<true%>",
-			inner);
+	    bool warned = warning_at (warn_loc,
+				      OPT_Waddress,
+				      "testing the address of %qD will always evaluate as %<true%>",
+				      inner);
+
+	    if (warned)
+	      maybe_suggest_function_call (warn_loc, inner);
+
 	    suppress_warning (inner, OPT_Waddress);
 	    return truthvalue_true_node;
 	  }

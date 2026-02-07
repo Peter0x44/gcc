@@ -1731,6 +1731,8 @@ extern void maybe_add_include_fixit (rich_location *, const char *, bool);
 extern void maybe_suggest_missing_token_insertion (rich_location *richloc,
 						   enum cpp_ttype token_type,
 						   location_t prev_token_loc);
+extern void maybe_suggest_function_call (location_t, tree,
+					 bool = false, tree = NULL_TREE);
 extern void maybe_emit_indirection_note (location_t loc,
 					 tree expr, tree expected_type);
 extern bool compatible_types_for_indirection_note_p (tree type1, tree type2);

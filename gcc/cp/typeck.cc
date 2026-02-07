@@ -5201,6 +5201,34 @@ build_vec_cmp (tree_code code, tree type,
   return build3 (VEC_COND_EXPR, type, cmp, minus_one_vec, zero_vec);
 }
 
+/* Helper function to extract the lambda variable declaration from OP.
+   Returns the VAR_DECL if OP is a lambda stored in a named variable,
+   or NULL_TREE if it's a non-variable lambda expression or not a lambda.  */
+
+static tree
+extract_lambda_var_decl (tree op)
+{
+  tree orig = op;
+  STRIP_NOPS (orig);
+
+  /* If op is a CALL_EXPR (lambda conversion operator call),
+     check its first argument which is ADDR_EXPR of the lambda object.  */
+  if (TREE_CODE (orig) == CALL_EXPR && call_expr_nargs (orig) > 0)
+    {
+      tree arg0 = CALL_EXPR_ARG (orig, 0);
+      if (TREE_CODE (arg0) == ADDR_EXPR)
+	{
+	  tree inner = TREE_OPERAND (arg0, 0);
+	  /* Check if it's a VAR_DECL (named variable)
+	     or TARGET_EXPR  (temporary).  */
+	  if (TREE_CODE (inner) == VAR_DECL && DECL_NAME (inner))
+	    return inner;
+	}
+    }
+
+  return NULL_TREE;
+}
+
 /* Possibly warn about an address never being NULL.  */
 
 static void
@@ -5270,9 +5298,32 @@ warn_for_null_address (location_t location, tree op, tsubst_flags_t complain)
 	  || warning_suppressed_p (cop, OPT_Waddress))
 	return;
 
-      warned = warning_at (location, OPT_Waddress,
-			   "the address of %qD will never be NULL", cop);
-      op = cop;
+      /* Check if this is a lambda static thunk to avoid showing ugly internal
+         names.  */
+      bool is_lambda = lambda_static_thunk_p (cop);
+      tree var_decl = NULL_TREE;
+
+      if (is_lambda)
+	var_decl = extract_lambda_var_decl (op);
+
+      if (is_lambda && var_decl)
+	warned = warning_at (location, OPT_Waddress,
+			     "testing %qD converted to a function pointer "
+			     "will always evaluate as %<true%>", var_decl);
+      else if (is_lambda)
+	warned = warning_at (location, OPT_Waddress,
+			     "testing a lambda expression converted to a "
+			     "function pointer will always evaluate as %<true%>");
+      else
+	warned = warning_at (location, OPT_Waddress,
+			     "testing the address of %qD will always "
+			     "evaluate as %<true%>", cop);
+
+      /* Add fix-it hints to suggest adding parens to call functions without
+	 arguments.  */
+      if (warned && TREE_CODE (cop) == FUNCTION_DECL)
+	maybe_suggest_function_call (location, cop, is_lambda, var_decl);
+      return;
     }
   else if (TREE_CODE (cop) == POINTER_PLUS_EXPR)
     {

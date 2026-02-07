@@ -14225,7 +14225,7 @@ maybe_warn_for_null_address (location_t loc, tree op, tree_code code)
       else
 	warning_at (loc, OPT_Waddress,
 		    "the comparison will always evaluate as %<true%> "
-		    "for the address of %qE will never be NULL",
+		    "because the address of %qE will never be NULL",
 		    op);
       return;
     }
@@ -14254,20 +14254,22 @@ maybe_warn_for_null_address (location_t loc, tree op, tree_code code)
       || from_macro_expansion_at (loc))
     return;
 
+  auto_diagnostic_group d;
+  
   bool w;
   if (code == EQ_EXPR)
     w = warning_at (loc, OPT_Waddress,
 		    "the comparison will always evaluate as %<false%> "
-		    "for the address of %qE will never be NULL",
+		    "because the address of %qE will never be NULL",
 		    op);
   else
     w = warning_at (loc, OPT_Waddress,
 		    "the comparison will always evaluate as %<true%> "
-		    "for the address of %qE will never be NULL",
+		    "because the address of %qE will never be NULL",
 		    op);
 
-  if (w && DECL_P (op))
-    inform (DECL_SOURCE_LOCATION (op), "%qD declared here", op);
+  if (w && TREE_CODE (op) == FUNCTION_DECL)
+    maybe_suggest_function_call (loc, op);
 }
 
 /* Build a binary-operation expression without default conversions.
