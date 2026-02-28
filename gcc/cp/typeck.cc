@@ -5203,30 +5203,58 @@ build_vec_cmp (tree_code code, tree type,
 
 /* Helper function to extract the lambda variable declaration from OP.
    Returns the VAR_DECL if OP is a lambda stored in a named variable,
-   or NULL_TREE if it's a non-variable lambda expression or not a lambda.  */
+   or NULL_TREE otherwise.  */
 
 static tree
 extract_lambda_var_decl (tree op)
 {
-  tree orig = op;
-  STRIP_NOPS (orig);
+  STRIP_NOPS (op);
 
   /* If op is a CALL_EXPR (lambda conversion operator call),
      check its first argument which is ADDR_EXPR of the lambda object.  */
-  if (TREE_CODE (orig) == CALL_EXPR && call_expr_nargs (orig) > 0)
+  if (TREE_CODE (op) == CALL_EXPR && call_expr_nargs (op) > 0)
     {
-      tree arg0 = CALL_EXPR_ARG (orig, 0);
+      tree arg0 = CALL_EXPR_ARG (op, 0);
       if (TREE_CODE (arg0) == ADDR_EXPR)
-	{
-	  tree inner = TREE_OPERAND (arg0, 0);
-	  /* Check if it's a VAR_DECL (named variable)
-	     or TARGET_EXPR  (temporary).  */
-	  if (TREE_CODE (inner) == VAR_DECL && DECL_NAME (inner))
-	    return inner;
-	}
+	op = TREE_OPERAND (arg0, 0);
+    }
+  /* If op is an ADDR_EXPR, unwrap it.  */
+  else if (TREE_CODE (op) == ADDR_EXPR)
+    {
+      op = TREE_OPERAND (op, 0);
     }
 
+  /* Check if it's a named variable.  */
+  if (TREE_CODE (op) == VAR_DECL && DECL_NAME (op))
+    return op;
+
   return NULL_TREE;
+}
+
+/* Helper function to extract the static thunk from a lambda CALL_EXPR.
+   In some contexts, lambdas appear as a CALL_EXPR to the conversion
+   operator. This function checks if EXPR is such a call and returns the
+   corresponding static thunk "_FUN", or NULL_TREE otherwise.  */
+
+static tree
+extract_lambda_static_thunk (tree expr)
+{
+  if (TREE_CODE (expr) != CALL_EXPR)
+    return NULL_TREE;
+
+  tree fndecl = cp_get_callee_fndecl_nofold (expr);
+  if (!fndecl
+      || !LAMBDA_TYPE_P (CP_DECL_CONTEXT (fndecl))
+      || !DECL_CONV_FN_P (fndecl))
+    return NULL_TREE;
+
+  /* This is a lambda conversion operator. Look up the static thunk "_FUN"
+     in the lambda class.  */
+  tree lambda_type = CP_DECL_CONTEXT (fndecl);
+  tree fun_id = get_identifier ("_FUN");
+  tree static_thunk = get_class_binding_direct (lambda_type, fun_id);
+
+  return static_thunk ? get_first_fn (static_thunk) : NULL_TREE;
 }
 
 /* Possibly warn about an address never being NULL.  */
@@ -5269,6 +5297,33 @@ warn_for_null_address (location_t location, tree op, tsubst_flags_t complain)
 
   auto_diagnostic_group d;
   bool warned = false;
+
+  /* In some contexts, lambdas appear as a CALL_EXPR to the
+     conversion operator, not ADDR_EXPR.  */
+  if (TREE_CODE (cop) == CALL_EXPR)
+    {
+      tree lambda_thunk = extract_lambda_static_thunk (cop);
+      if (lambda_thunk)
+        {
+          tree var_decl = extract_lambda_var_decl (op);
+
+          if (var_decl)
+            warned = warning_at (location, OPT_Waddress,
+                                 "testing %qD converted to a function pointer "
+                                 "will always evaluate as %<true%>", var_decl);
+          else
+            warned = warning_at (location, OPT_Waddress,
+                                 "testing a lambda expression converted to a "
+                                 "function pointer will always evaluate as %<true%>");
+
+          if (warned)
+            maybe_suggest_function_call (location, lambda_thunk, true, var_decl);
+
+          return;
+        }
+    }
+
+  /* Handle ADDR_EXPR: could be a lambda, function, or member.  */
   if (TREE_CODE (cop) == ADDR_EXPR)
     {
       cop = TREE_OPERAND (cop, 0);
@@ -5300,32 +5355,38 @@ warn_for_null_address (location_t location, tree op, tsubst_flags_t complain)
 
       /* Check if this is a lambda static thunk to avoid showing ugly internal
          names.  */
-      bool is_lambda = lambda_static_thunk_p (cop);
-      tree var_decl = NULL_TREE;
+      if (lambda_static_thunk_p (cop))
+        {
+          tree var_decl = extract_lambda_var_decl (op);
 
-      if (is_lambda)
-	var_decl = extract_lambda_var_decl (op);
+          if (var_decl)
+            warned = warning_at (location, OPT_Waddress,
+                                 "testing %qD converted to a function pointer "
+                                 "will always evaluate as %<true%>", var_decl);
+          else
+            warned = warning_at (location, OPT_Waddress,
+                                 "testing a lambda expression converted to a "
+                                 "function pointer will always evaluate as %<true%>");
 
-      if (is_lambda && var_decl)
-	warned = warning_at (location, OPT_Waddress,
-			     "testing %qD converted to a function pointer "
-			     "will always evaluate as %<true%>", var_decl);
-      else if (is_lambda)
-	warned = warning_at (location, OPT_Waddress,
-			     "testing a lambda expression converted to a "
-			     "function pointer will always evaluate as %<true%>");
+          if (warned)
+            maybe_suggest_function_call (location, cop, true, var_decl);
+        }
       else
-	warned = warning_at (location, OPT_Waddress,
-			     "testing the address of %qD will always "
-			     "evaluate as %<true%>", cop);
+        {
+          /* Regular function or variable address.  */
+          warned = warning_at (location, OPT_Waddress,
+                               "testing the address of %qD will always "
+                               "evaluate as %<true%>", cop);
 
-      /* Add fix-it hints to suggest adding parens to call functions without
-	 arguments.  */
-      if (warned && TREE_CODE (cop) == FUNCTION_DECL)
-	maybe_suggest_function_call (location, cop, is_lambda, var_decl);
+          /* Add fix-it hints to suggest adding parens to call functions without
+             arguments.  */
+          if (warned && TREE_CODE (cop) == FUNCTION_DECL)
+            maybe_suggest_function_call (location, cop, false, NULL_TREE);
+        }
       return;
     }
-  else if (TREE_CODE (cop) == POINTER_PLUS_EXPR)
+
+  if (TREE_CODE (cop) == POINTER_PLUS_EXPR)
     {
       /* Adding zero to the null pointer is well-defined in C++.  When
 	 the offset is unknown (i.e., not a constant) warn anyway since
