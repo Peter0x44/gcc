@@ -7603,6 +7603,12 @@ contextual_conv_bool (tree expr, tsubst_flags_t complain)
 tree
 condition_conversion (tree expr)
 {
+  tree orig = tree_strip_any_location_wrapper (expr);
+  STRIP_NOPS (orig);
+  if (TREE_CODE (orig) == ADDR_EXPR
+      && TREE_CODE (TREE_OPERAND (orig, 0)) == FUNCTION_DECL)
+    suppress_warning (orig, OPT_Waddress);
+
   tree t = contextual_conv_bool (expr, tf_warning_or_error);
   if (!processing_template_decl)
     t = fold_build_cleanup_point_expr (boolean_type_node, t);
