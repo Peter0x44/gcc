@@ -46,4 +46,35 @@ set_precision (void)
 
   asm volatile ("fldcw\t%0" : : "m" (cwd));
 }
+
+#if defined (_WIN32) && defined (__i386__)
+/* Windows does not let a new thread inherit the x87 control word of the
+   thread that created it; every thread starts with 53-bit precision.  Set
+   the precision again from a TLS callback, which runs on each new thread
+   before its start routine.  This cannot work on x86_64, where the thread's
+   initial context, including its floating-point state, is loaded after the
+   TLS callbacks have run.  */
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
+static void NTAPI
+set_precision_tls (PVOID handle, DWORD reason, PVOID reserved)
+{
+  (void) handle;
+  (void) reserved;
+  if (reason == DLL_THREAD_ATTACH)
+    set_precision ();
+}
+
+/* Pull in the CRT's TLS directory, so that the callback is run.  */
+extern const IMAGE_TLS_DIRECTORY _tls_used;
+static const void *const crtprec_tls_used __attribute__((used)) = &_tls_used;
+
+/* The CRT's TLS callbacks run in the order of their .CRT$XL? section names.
+   Use .CRT$XLB so that the precision is already set when the CRT's
+   callback in .CRT$XLC runs dynamic initializers of thread-local
+   variables.  */
+static const PIMAGE_TLS_CALLBACK crtprec_tls_callback
+  __attribute__((section (".CRT$XLB"), used)) = set_precision_tls;
+#endif
 #endif

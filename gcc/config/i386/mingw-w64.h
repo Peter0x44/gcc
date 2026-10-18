@@ -49,12 +49,18 @@ along with GCC; see the file COPYING3.  If not see
    -lmingwex %{!mcrtdll=*:-lmsvcrt} %{mcrtdll=*:-l%*} \
    -lkernel32 " MCFGTHREAD_SPEC
 
+/* crtprec*.o refers to the CRT's TLS directory (_tls_used) to register a
+   TLS callback, so unlike on other targets it is linked before the
+   libraries rather than from ENDFILE_SPEC.  */
 #undef STARTFILE_SPEC
 #define STARTFILE_SPEC "%{shared|mdll:dllcrt2%O%s} \
   %{!shared:%{!mdll:%{!municode:crt2%O%s}}} \
   %{!shared:%{!mdll:%{municode:crt2u%O%s}}} \
   %{pg:gcrt2%O%s} \
   crtbegin.o%s \
+  %{mpc32:crtprec32.o%s} \
+  %{mpc64:crtprec64.o%s} \
+  %{mpc80:crtprec80.o%s} \
   %{fvtable-verify=none:%s; \
     fvtable-verify=preinit:vtv_start.o%s; \
     fvtable-verify=std:vtv_start.o%s}"
