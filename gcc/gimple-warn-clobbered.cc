@@ -68,6 +68,12 @@ struct setjmp_clobber_info
   sbitmap end_reachable;
   hash_set<gimple *> dead;
 
+  /* For the call being analyzed, whether executing it again replaces its
+     context, and the basic blocks from whose start a call that might
+     longjmp to its context might be reached.  */
+  bool replaces_context;
+  sbitmap longjmp_after;
+
   /* For the call being analyzed, the basic blocks that might be executed
      after it returns for the second time and before it is called again,
      not counting the one containing the call.  */
@@ -98,6 +104,7 @@ setjmp_clobber_info::setjmp_clobber_info ()
 {
   reachable = sbitmap_alloc (last_basic_block_for_fn (cfun));
   end_reachable = sbitmap_alloc (last_basic_block_for_fn (cfun));
+  longjmp_after = sbitmap_alloc (last_basic_block_for_fn (cfun));
   region = sbitmap_alloc (last_basic_block_for_fn (cfun));
   live = sbitmap_alloc (last_basic_block_for_fn (cfun));
 }
@@ -106,35 +113,42 @@ setjmp_clobber_info::~setjmp_clobber_info ()
 {
   sbitmap_free (reachable);
   sbitmap_free (end_reachable);
+  sbitmap_free (longjmp_after);
   sbitmap_free (region);
   sbitmap_free (live);
 }
 
-/* Return true if STMT might be executed after the returns-twice call
-   being analyzed returns.  */
-
-static bool
-setjmp_reexecuted_p (setjmp_clobber_info &info, gimple *stmt)
-{
-  return ((bitmap_bit_p (info.reachable, gimple_bb (stmt)->index)
-	   || info.after_this.contains (stmt))
-	  && !info.dead.contains (stmt));
-}
-
-/* Return the name of the function called by the returns-twice call STMT
-   without a _ or __ prefix if it might be one of the functions recognized
-   by special_function_p, or NULL otherwise.  */
+/* Return the name of the standard function that returns twice that the
+   returns-twice call STMT is known to call, without a _ or __ prefix, or
+   NULL if there is none.  Look at the assembler name too, as e.g. glibc
+   declares __sigsetjmp_cancel with an assembler name of __sigsetjmp.  */
 
 static const char *
 setjmp_special_name (const gcall *stmt)
 {
+  static const char *const known[]
+    = { "setjmp", "sigsetjmp", "vfork", "getcontext", "savectx" };
   tree fndecl = gimple_call_fndecl (stmt);
   if (!fndecl || !DECL_NAME (fndecl) || !maybe_special_function_p (fndecl))
     return NULL;
-  const char *name = IDENTIFIER_POINTER (DECL_NAME (fndecl));
-  if (name[0] == '_')
-    name += name[1] == '_' ? 2 : 1;
-  return name;
+
+  tree ids[2] = { DECL_NAME (fndecl), NULL_TREE };
+  if (DECL_ASSEMBLER_NAME_SET_P (fndecl))
+    ids[1] = DECL_ASSEMBLER_NAME (fndecl);
+  for (tree id : ids)
+    {
+      if (!id)
+	continue;
+      const char *name = IDENTIFIER_POINTER (id);
+      if (name[0] == '*')
+	name++;
+      if (name[0] == '_')
+	name += name[1] == '_' ? 2 : 1;
+      for (const char *k : known)
+	if (!strcmp (name, k))
+	  return k;
+    }
+  return NULL;
 }
 
 /* Return true if the returns-twice call STMT is known to be to one of the
@@ -143,13 +157,7 @@ setjmp_special_name (const gcall *stmt)
 static bool
 setjmp_known_function_p (const gcall *stmt)
 {
-  const char *name = setjmp_special_name (stmt);
-  return (name
-	  && (!strcmp (name, "setjmp")
-	      || !strcmp (name, "sigsetjmp")
-	      || !strcmp (name, "vfork")
-	      || !strcmp (name, "getcontext")
-	      || !strcmp (name, "savectx")));
+  return setjmp_special_name (stmt) != NULL;
 }
 
 /* Return true if the returns-twice call STMT is known to return a nonzero
@@ -381,8 +389,36 @@ setjmp_mark_dead (setjmp_clobber_info &info, gimple_stmt_iterator gsi,
   return dead;
 }
 
-/* Set INFO.reachable, INFO.end_reachable and INFO.dead for the
-   returns-twice call CALL.  */
+/* Return true if E is followed when looking for what might be executed after
+   the returns-twice call CALL being analyzed returns.  */
+
+static bool
+setjmp_reachable_edge_p (setjmp_clobber_info &info, gcall *call, edge e)
+{
+  return (!setjmp_spurious_abnormal_edge_p (e)
+	  && !(info.replaces_context && e->dest == gimple_bb (call)));
+}
+
+/* Return true if the last statement of BB is a call that might longjmp.  */
+
+static bool
+setjmp_ends_in_longjmp_p (basic_block bb)
+{
+  edge e;
+  edge_iterator ei;
+  FOR_EACH_EDGE (e, ei, bb->succs)
+    if ((e->flags & EDGE_ABNORMAL) && !setjmp_spurious_abnormal_edge_p (e))
+      {
+	gimple_stmt_iterator gsi = gsi_start_nondebug_after_labels_bb (e->dest);
+	if (!gsi_end_p (gsi)
+	    && gimple_call_internal_p (gsi_stmt (gsi), IFN_ABNORMAL_DISPATCHER))
+	  return true;
+      }
+  return false;
+}
+
+/* Set INFO.reachable, INFO.end_reachable, INFO.dead and INFO.longjmp_after
+   for the returns-twice call CALL.  */
 
 static void
 setjmp_compute_reachable (setjmp_clobber_info &info, gcall *call)
@@ -391,7 +427,7 @@ setjmp_compute_reachable (setjmp_clobber_info &info, gcall *call)
      executed after that does not matter, and neither does what is executed
      after the storage for the context ends.  */
   basic_block call_bb = gimple_bb (call);
-  bool stop = setjmp_replaces_context_p (call);
+  info.replaces_context = setjmp_replaces_context_p (call);
   tree context = setjmp_context_var (call);
   bitmap_clear (info.reachable);
   bitmap_clear (info.end_reachable);
@@ -409,13 +445,70 @@ setjmp_compute_reachable (setjmp_clobber_info &info, gcall *call)
       edge e;
       edge_iterator ei;
       FOR_EACH_EDGE (e, ei, bb->succs)
-	if (!setjmp_spurious_abnormal_edge_p (e)
-	    && !(stop && e->dest == call_bb)
+	if (setjmp_reachable_edge_p (info, call, e)
 	    && bitmap_set_bit (info.reachable, e->dest->index)
 	    && (e->dest == EXIT_BLOCK_PTR_FOR_FN (cfun)
 		|| !setjmp_mark_dead (info, gsi_start_bb (e->dest), context)))
 	  info.worklist.safe_push (e->dest);
     }
+
+  /* Then the blocks from which a call that might longjmp can be reached,
+     backwards from the blocks that end in such a call.  */
+  bitmap_clear (info.longjmp_after);
+  basic_block bb;
+  FOR_EACH_BB_FN (bb, cfun)
+    if (bitmap_bit_p (info.end_reachable, bb->index)
+	&& setjmp_ends_in_longjmp_p (bb))
+      {
+	bitmap_set_bit (info.longjmp_after, bb->index);
+	info.worklist.safe_push (bb);
+      }
+  while (!info.worklist.is_empty ())
+    {
+      bb = info.worklist.pop ();
+      edge e;
+      edge_iterator ei;
+      FOR_EACH_EDGE (e, ei, bb->preds)
+	if (setjmp_reachable_edge_p (info, call, e)
+	    && bitmap_bit_p (info.end_reachable, e->src->index)
+	    && bitmap_set_bit (info.longjmp_after, e->src->index))
+	  info.worklist.safe_push (e->src);
+    }
+}
+
+/* Return true if a call that might longjmp to the context of the
+   returns-twice call CALL being analyzed might be executed after the
+   statement STMT of BB, or after the PHI nodes of BB if STMT is NULL.  */
+
+static bool
+setjmp_longjmp_after_p (setjmp_clobber_info &info, gcall *call,
+			basic_block bb, gimple *stmt)
+{
+  if (!bitmap_bit_p (info.end_reachable, bb->index))
+    return false;
+  gimple *last = *gsi_last_bb (bb);
+  if (last != stmt && setjmp_ends_in_longjmp_p (bb))
+    return true;
+  edge e;
+  edge_iterator ei;
+  FOR_EACH_EDGE (e, ei, bb->succs)
+    if (setjmp_reachable_edge_p (info, call, e)
+	&& bitmap_bit_p (info.longjmp_after, e->dest->index))
+      return true;
+  return false;
+}
+
+/* Return true if STMT might be executed after the returns-twice call CALL
+   being analyzed returns and before a call that might longjmp to its
+   context.  */
+
+static bool
+setjmp_reexecuted_p (setjmp_clobber_info &info, gcall *call, gimple *stmt)
+{
+  return ((bitmap_bit_p (info.reachable, gimple_bb (stmt)->index)
+	   || info.after_this.contains (stmt))
+	  && !info.dead.contains (stmt)
+	  && setjmp_longjmp_after_p (info, call, gimple_bb (stmt), stmt));
 }
 
 /* Set INFO.region for the returns-twice call CALL.  */
@@ -600,9 +693,11 @@ setjmp_phi_changed_p (setjmp_clobber_info &info, gcall *call, gphi *phi)
   tree res = gimple_phi_result (phi);
   tree value = setjmp_strip_copies (res);
   /* When CALL is executed again in a way that replaces its context, its
-     receiver gets a new value for a new context.  */
-  bool new_context = (gimple_bb (phi) == gimple_bb (call)
-		      && setjmp_replaces_context_p (call));
+     receiver gets a new value for a new context.  Otherwise a new value
+     only matters if a call that might longjmp can follow.  */
+  basic_block bb = gimple_bb (phi);
+  bool new_context = ((bb == gimple_bb (call) && info.replaces_context)
+		      || !setjmp_longjmp_after_p (info, call, bb, NULL));
   edge e;
   edge_iterator ei;
   FOR_EACH_EDGE (e, ei, gimple_bb (phi)->preds)
@@ -698,7 +793,7 @@ setjmp_name_changed_p (setjmp_clobber_info &info, gcall *call, tree name,
 		|| setjmp_name_changed_p (info, call, value, depth + 1)));
   if (gphi *phi = dyn_cast <gphi *> (def))
     return setjmp_phi_changed_p (info, call, phi);
-  return setjmp_reexecuted_p (info, def);
+  return setjmp_reexecuted_p (info, call, def);
 }
 
 /* Set *READS and *WRITES to whether STMT reads and writes the hard
@@ -825,7 +920,7 @@ setjmp_hard_reg_used_p (setjmp_clobber_info &info, gcall *call, tree var)
    returns-twice call returns.  */
 
 static bool
-setjmp_hard_reg_changed_p (setjmp_clobber_info &info, tree var)
+setjmp_hard_reg_changed_p (setjmp_clobber_info &info, gcall *call, tree var)
 {
   basic_block bb;
   FOR_EACH_BB_FN (bb, cfun)
@@ -834,7 +929,7 @@ setjmp_hard_reg_changed_p (setjmp_clobber_info &info, tree var)
       {
 	gimple *stmt = gsi_stmt (gsi);
 	bool reads, writes;
-	if (is_gimple_debug (stmt) || !setjmp_reexecuted_p (info, stmt))
+	if (is_gimple_debug (stmt) || !setjmp_reexecuted_p (info, call, stmt))
 	  continue;
 	setjmp_hard_reg_accesses (stmt, var, &reads, &writes);
 	if (writes)
@@ -951,7 +1046,7 @@ generate_setjmp_warnings (void)
 	if (!bitmap_bit_p (clobbered, DECL_UID (hard_reg))
 	    && setjmp_in_scope_p (decl_blocks, call, hard_reg)
 	    && setjmp_hard_reg_used_p (info, call, hard_reg)
-	    && setjmp_hard_reg_changed_p (info, hard_reg)
+	    && setjmp_hard_reg_changed_p (info, call, hard_reg)
 	    && bitmap_set_bit (clobbered, DECL_UID (hard_reg)))
 	  to_warn.safe_push (hard_reg);
     }

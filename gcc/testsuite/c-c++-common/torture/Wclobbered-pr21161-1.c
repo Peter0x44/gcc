@@ -169,3 +169,66 @@ f8 (int x)
     }
   return 0;
 }
+
+/* PR middle-end/61118: what glibc's pthread_cleanup_push expands to, in a
+   loop.  */
+
+struct cancel_jmp_buf { long buf[8]; int mask_was_saved; };
+typedef struct { struct cancel_jmp_buf cancel_jmp_buf[1]; void *pad[4]; }
+  unwind_buf_t;
+extern int sigsetjmp_cancel (struct cancel_jmp_buf env[1], int savemask)
+  __asm__ ("__sigsetjmp") __attribute__ ((__returns_twice__));
+extern void unwind_next (unwind_buf_t *) __attribute__ ((__noreturn__));
+extern void register_cancel (unwind_buf_t *);
+extern void unregister_cancel (unwind_buf_t *);
+extern void cleanup_fn (void *);
+extern void wait_for (int *);
+
+void
+f9 (int *mutex, int *progress)
+{
+  while (*progress < 100)
+    {
+      unwind_buf_t cancel_buf;
+      void (*cancel_routine) (void *) = cleanup_fn;	/* { dg-bogus "clobbered" } */
+      void *cancel_arg = mutex;	/* { dg-bogus "clobbered" } */
+      int not_first_call = sigsetjmp_cancel (cancel_buf.cancel_jmp_buf, 0);
+      if (__builtin_expect (not_first_call, 0))
+	{
+	  cancel_routine (cancel_arg);
+	  unwind_next (&cancel_buf);
+	}
+      register_cancel (&cancel_buf);
+      wait_for (mutex);
+      unregister_cancel (&cancel_buf);
+    }
+}
+
+/* PR middle-end/65041: a2 is only set before setjmp.  */
+
+extern void somefunc (int);
+extern void someotherfunc (int);
+extern int open_file (void);
+extern void close_file (int);
+
+void
+f10 (int a1)
+{
+  jmp_buf jbuf;
+  int fd;	/* { dg-warning "might be clobbered" } */
+  int a2;	/* { dg-bogus "clobbered" } */
+  if (a1 > 0)
+    a2 = 42;
+  else
+    a2 = 43;
+  fd = open_file ();
+  if (setjmp (jbuf) == 0)
+    {
+      somefunc (a2);
+      close_file (fd);
+      fd = -1;
+      someotherfunc (a2);
+    }
+  else if (fd >= 0)
+    close_file (fd);
+}
