@@ -4390,6 +4390,203 @@ setjmp_args_warning (bitmap setjmp_crosses)
 	       decl);
 }
 
+/* Return true if the returns-twice call INSN is known to return a nonzero
+   value when it returns for the second time, which is the case for setjmp
+   and sigsetjmp (when reached through longjmp) and for vfork (when the
+   parent resumes), but not e.g. for getcontext.  */
+
+static bool
+setjmp_second_return_nonzero_p (const rtx_insn *insn)
+{
+  tree fndecl = get_call_fndecl (insn);
+  if (!fndecl || !DECL_NAME (fndecl) || !maybe_special_function_p (fndecl))
+    return false;
+
+  /* Disregard prefix _ or __, like special_function_p.  */
+  const char *name = IDENTIFIER_POINTER (DECL_NAME (fndecl));
+  const char *tname = name;
+  if (name[0] == '_')
+    tname += name[1] == '_' ? 2 : 1;
+
+  return (!strcmp (tname, "setjmp")
+	  || !strcmp (tname, "sigsetjmp")
+	  || !strcmp (name, "vfork"));
+}
+
+/* Return true if X is one of the registers in VALUES.  */
+
+static bool
+setjmp_value_reg_p (const vec<rtx> &values, const_rtx x)
+{
+  if (!REG_P (x))
+    return false;
+  for (rtx value : values)
+    if (rtx_equal_p (value, x))
+      return true;
+  return false;
+}
+
+/* SETJMP_INSN is a returns-twice call whose second return is known to
+   produce a nonzero value.  Look for the conditional jump that tests the
+   value returned by SETJMP_INSN against zero and return the edge taken when
+   the value is nonzero, or NULL if there is no such jump or it cannot be
+   recognized.  Push every insn from after SETJMP_INSN up to and including
+   the jump onto INSNS.  */
+
+static edge
+setjmp_nonzero_edge (rtx_insn *setjmp_insn, vec<rtx_insn *> *insns)
+{
+  rtx pat = PATTERN (setjmp_insn);
+  if (GET_CODE (pat) == PARALLEL)
+    pat = XVECEXP (pat, 0, 0);
+  if (GET_CODE (pat) != SET || !REG_P (SET_DEST (pat)))
+    return NULL;
+
+  /* Registers known to hold the value returned by SETJMP_INSN, possibly
+     extended, and the condition code register, if any, that holds the
+     result of comparing such a register with zero.  */
+  auto_vec<rtx, 4> values;
+  values.safe_push (SET_DEST (pat));
+  rtx cc_reg = NULL_RTX;
+
+  basic_block bb = BLOCK_FOR_INSN (setjmp_insn);
+  rtx_insn *insn = setjmp_insn;
+  for (int steps = 0; steps < 32; steps++)
+    {
+      if (insn == BB_END (bb))
+	{
+	  /* Continue into the successor block, as long as it is the
+	     only possible one.  */
+	  if (!single_succ_p (bb)
+	      || (single_succ_edge (bb)->flags & EDGE_COMPLEX)
+	      || single_succ (bb) == EXIT_BLOCK_PTR_FOR_FN (cfun))
+	    return NULL;
+	  bb = single_succ (bb);
+	  insn = BB_HEAD (bb);
+	}
+      else
+	insn = NEXT_INSN (insn);
+
+      if (!NONDEBUG_INSN_P (insn))
+	continue;
+      insns->safe_push (insn);
+
+      if (CALL_P (insn))
+	return NULL;
+
+      if (JUMP_P (insn))
+	{
+	  if (!any_condjump_p (insn) || EDGE_COUNT (bb->succs) != 2)
+	    return NULL;
+
+	  rtx src = SET_SRC (pc_set (insn));
+	  rtx cond = XEXP (src, 0);
+	  if ((GET_CODE (cond) != EQ && GET_CODE (cond) != NE)
+	      || XEXP (cond, 1) != const0_rtx)
+	    return NULL;
+	  rtx op0 = XEXP (cond, 0);
+	  if (!setjmp_value_reg_p (values, op0)
+	      && !(cc_reg && rtx_equal_p (op0, cc_reg)))
+	    return NULL;
+
+	  edge branch = NULL, fallthru = NULL, e;
+	  edge_iterator ei;
+	  FOR_EACH_EDGE (e, ei, bb->succs)
+	    {
+	      if (e->flags & EDGE_COMPLEX)
+		return NULL;
+	      if (e->flags & EDGE_FALLTHRU)
+		fallthru = e;
+	      else
+		branch = e;
+	    }
+	  if (!branch || !fallthru)
+	    return NULL;
+
+	  /* The jump is taken when COND is true, unless the "then" arm
+	     is the fallthrough.  */
+	  bool jump_if_nonzero = ((GET_CODE (cond) == NE)
+				  == (XEXP (src, 2) == pc_rtx));
+	  e = jump_if_nonzero ? branch : fallthru;
+	  if (e->dest == EXIT_BLOCK_PTR_FOR_FN (cfun))
+	    return NULL;
+	  return e;
+	}
+
+      rtx new_value = NULL_RTX, new_cc_reg = NULL_RTX;
+      rtx set = single_set (insn);
+      if (set && REG_P (SET_DEST (set)))
+	{
+	  rtx src = SET_SRC (set);
+	  if (GET_CODE (src) == SIGN_EXTEND || GET_CODE (src) == ZERO_EXTEND)
+	    src = XEXP (src, 0);
+	  if (setjmp_value_reg_p (values, src))
+	    new_value = SET_DEST (set);
+	  else if (GET_CODE (src) == COMPARE
+		   && GET_MODE_CLASS (GET_MODE (SET_DEST (set))) == MODE_CC
+		   && setjmp_value_reg_p (values, XEXP (src, 0))
+		   && XEXP (src, 1) == const0_rtx)
+	    new_cc_reg = SET_DEST (set);
+	}
+
+      /* Forget about any register that INSN overwrites.  */
+      df_ref def;
+      FOR_EACH_INSN_DEF (def, insn)
+	{
+	  unsigned int regno = DF_REF_REGNO (def);
+	  for (unsigned int i = values.length (); i-- > 0;)
+	    if (refers_to_regno_p (regno, values[i]))
+	      values.unordered_remove (i);
+	  if (cc_reg && refers_to_regno_p (regno, cc_reg))
+	    cc_reg = NULL_RTX;
+	}
+
+      if (new_value)
+	values.safe_push (new_value);
+      if (new_cc_reg)
+	cc_reg = new_cc_reg;
+      if (values.is_empty () && !cc_reg)
+	return NULL;
+    }
+
+  return NULL;
+}
+
+/* Set LIVE to the registers whose values at the returns-twice call
+   SETJMP_INSN might be used when the call returns for the second time.
+
+   This is a subset of what is live after SETJMP_INSN: the latter also
+   includes what is used only on the path taken when the call returns
+   normally, i.e. for setjmp when it returns zero, which is irrelevant to
+   whether a variable can be clobbered by longjmp.  */
+
+static void
+setjmp_second_return_live (rtx_insn *setjmp_insn, bitmap live)
+{
+  auto_vec<rtx_insn *, 16> insns;
+  edge e = NULL;
+  if (setjmp_second_return_nonzero_p (setjmp_insn))
+    e = setjmp_nonzero_edge (setjmp_insn, &insns);
+
+  if (e)
+    {
+      /* Compute what is live after SETJMP_INSN on the path to E.  */
+      bitmap_copy (live, df_get_live_in (e->dest));
+      for (unsigned int i = insns.length (); i-- > 0;)
+	df_simulate_one_insn_backwards (BLOCK_FOR_INSN (insns[i]), insns[i],
+					live);
+      return;
+    }
+
+  /* Otherwise use everything live after SETJMP_INSN.  */
+  basic_block bb = BLOCK_FOR_INSN (setjmp_insn);
+  bitmap_copy (live, df_get_live_out (bb));
+  df_simulate_initialize_backwards (bb, live);
+  for (rtx_insn *insn = BB_END (bb); insn != setjmp_insn;
+       insn = PREV_INSN (insn))
+    df_simulate_one_insn_backwards (bb, insn, live);
+}
+
 /* Generate warning messages for variables live across setjmp.  */
 
 void
@@ -4401,8 +4598,26 @@ generate_setjmp_warnings (void)
       || bitmap_empty_p (setjmp_crosses))
     return;
 
-  setjmp_vars_warning (setjmp_crosses, DECL_INITIAL (current_function_decl));
-  setjmp_args_warning (setjmp_crosses);
+  /* SETJMP_CROSSES has everything live across a setjmp call, which is what
+     register allocation must be careful about.  Only warn about what might
+     be used after a second return from such a call.  */
+  auto_bitmap candidates, live;
+  basic_block bb;
+  rtx_insn *insn;
+  FOR_EACH_BB_FN (bb, cfun)
+    FOR_BB_INSNS (bb, insn)
+      if (CALL_P (insn) && find_reg_note (insn, REG_SETJMP, NULL_RTX))
+	{
+	  setjmp_second_return_live (insn, live);
+	  bitmap_ior_into (candidates, live);
+	}
+  bitmap_and_into (candidates, setjmp_crosses);
+
+  if (bitmap_empty_p (candidates))
+    return;
+
+  setjmp_vars_warning (candidates, DECL_INITIAL (current_function_decl));
+  setjmp_args_warning (candidates);
 }
 
 
