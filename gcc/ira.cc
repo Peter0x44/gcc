@@ -5829,12 +5829,6 @@ ira (FILE *f)
   regstat_init_n_sets_and_refs ();
   regstat_compute_ri ();
 
-  /* If we are not optimizing, then this is the only place before
-     register allocation where dataflow is done.  And that is needed
-     to generate these warnings.  */
-  if (warn_clobbered)
-    generate_setjmp_warnings ();
-
   /* update_equiv_regs can use reg classes of pseudos and they are set up in
      register pressure sensitive scheduling and loop invariant motion and in
      live range shrinking.  This info can become obsolete if we add new pseudos

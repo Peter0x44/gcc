@@ -4330,82 +4330,6 @@ pad_below (struct args_size *offset_ptr, machine_mode passed_mode, tree sizetree
 }
 
 
-/* True if register REGNO was alive at a place where `setjmp' was
-   called and was set more than once or is an argument.  Such regs may
-   be clobbered by `longjmp'.  */
-
-static bool
-regno_clobbered_at_setjmp (bitmap setjmp_crosses, int regno)
-{
-  /* There appear to be cases where some local vars never reach the
-     backend but have bogus regnos.  */
-  if (regno >= max_reg_num ())
-    return false;
-
-  return ((REG_N_SETS (regno) > 1
-	   || REGNO_REG_SET_P (df_get_live_out (ENTRY_BLOCK_PTR_FOR_FN (cfun)),
-			       regno))
-	  && REGNO_REG_SET_P (setjmp_crosses, regno));
-}
-
-/* Walk the tree of blocks describing the binding levels within a
-   function and warn about variables the might be killed by setjmp or
-   vfork.  This is done after calling flow_analysis before register
-   allocation since that will clobber the pseudo-regs to hard
-   regs.  */
-
-static void
-setjmp_vars_warning (bitmap setjmp_crosses, tree block)
-{
-  tree decl, sub;
-
-  for (decl = BLOCK_VARS (block); decl; decl = DECL_CHAIN (decl))
-    {
-      if (VAR_P (decl)
-	  && DECL_RTL_SET_P (decl)
-	  && REG_P (DECL_RTL (decl))
-	  && regno_clobbered_at_setjmp (setjmp_crosses, REGNO (DECL_RTL (decl))))
-	warning (OPT_Wclobbered, "variable %q+D might be clobbered by"
-                 " %<longjmp%> or %<vfork%>", decl);
-    }
-
-  for (sub = BLOCK_SUBBLOCKS (block); sub; sub = BLOCK_CHAIN (sub))
-    setjmp_vars_warning (setjmp_crosses, sub);
-}
-
-/* Do the appropriate part of setjmp_vars_warning
-   but for arguments instead of local variables.  */
-
-static void
-setjmp_args_warning (bitmap setjmp_crosses)
-{
-  tree decl;
-  for (decl = DECL_ARGUMENTS (current_function_decl);
-       decl; decl = DECL_CHAIN (decl))
-    if (DECL_RTL (decl) != 0
-	&& REG_P (DECL_RTL (decl))
-	&& regno_clobbered_at_setjmp (setjmp_crosses, REGNO (DECL_RTL (decl))))
-      warning (OPT_Wclobbered,
-               "argument %q+D might be clobbered by %<longjmp%> or %<vfork%>",
-	       decl);
-}
-
-/* Generate warning messages for variables live across setjmp.  */
-
-void
-generate_setjmp_warnings (void)
-{
-  bitmap setjmp_crosses = regstat_get_setjmp_crosses ();
-
-  if (n_basic_blocks_for_fn (cfun) == NUM_FIXED_BLOCKS
-      || bitmap_empty_p (setjmp_crosses))
-    return;
-
-  setjmp_vars_warning (setjmp_crosses, DECL_INITIAL (current_function_decl));
-  setjmp_args_warning (setjmp_crosses);
-}
-
-
 /* Reverse the order of elements in the fragment chain T of blocks,
    and return the new head of the chain (old last element).
    In addition to that clear BLOCK_SAME_RANGE flags when needed

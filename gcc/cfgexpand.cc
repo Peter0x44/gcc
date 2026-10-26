@@ -7068,6 +7068,9 @@ pass_expand::execute (function *fun)
   rtx_insn *var_seq, *var_ret_seq;
   unsigned i;
 
+  /* This needs the abnormal edges and the PHI nodes for them.  */
+  generate_setjmp_warnings ();
+
   timevar_push (TV_OUT_OF_SSA);
   rewrite_out_of_ssa (&SA);
   timevar_pop (TV_OUT_OF_SSA);
