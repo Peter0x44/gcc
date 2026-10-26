@@ -71,3 +71,37 @@ f4 (int x)
   baz (ctx);
   return y;
 }
+
+/* The assignment after setjmp only matters after longjmp, so RTL deletes
+   it, but y is still modified.  */
+
+int
+f5 (int c)
+{
+  jmp_buf env;
+  int y = 1;	/* { dg-warning "might be clobbered" } */
+  if (c)
+    y = bar ();
+  if (setjmp (env))
+    return y;
+  y = bar ();
+  baz (&env);
+  return y;
+}
+
+/* y is modified before setjmp is called again, which may be followed by
+   a longjmp to an earlier *p.  */
+
+int
+f6 (jmp_buf *p)
+{
+  int y = 0;	/* { dg-warning "might be clobbered" } */
+  for (;;)
+    {
+      if (setjmp (*p))
+	return y;
+      baz (p);
+      y++;
+      p++;
+    }
+}

@@ -79,6 +79,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-ssa.h"
 #include "attribs.h"
 #include "gimple.h"
+#include "gimple-iterator.h"
 #include "options.h"
 #include "function-abi.h"
 #include "value-range.h"
@@ -4330,6 +4331,142 @@ pad_below (struct args_size *offset_ptr, machine_mode passed_mode, tree sizetree
 }
 
 
+/* DECL_UIDs of the variables that are known not to change after a
+   returns-twice call returns, as computed by record_setjmp_unmodified_vars,
+   or NULL if that is not known for any variable.  */
+
+static bitmap setjmp_unmodified_vars;
+
+/* The obstack for SETJMP_UNMODIFIED_VARS, which needs to outlive the
+   passes between expansion and register allocation.  */
+
+static bitmap_obstack setjmp_unmodified_obstack;
+
+/* Free SETJMP_UNMODIFIED_VARS.  */
+
+static void
+free_setjmp_unmodified_vars (void)
+{
+  if (setjmp_unmodified_vars)
+    {
+      bitmap_obstack_release (&setjmp_unmodified_obstack);
+      setjmp_unmodified_vars = NULL;
+    }
+}
+
+/* Record in SETJMP_UNMODIFIED_VARS the variables whose value never changes
+   after a returns-twice call returns, so that they cannot be clobbered by
+   longjmp.  This needs the abnormal edges and PHI nodes that only exist
+   before expansion: RTL has no edges for the second return of a setjmp
+   call, so it may delete assignments that only matter after it.  */
+
+void
+record_setjmp_unmodified_vars (void)
+{
+  free_setjmp_unmodified_vars ();
+  if (!warn_clobbered || !cfun->calls_setjmp)
+    return;
+
+  /* Find the abnormal dispatchers and everything reachable from the
+     receivers they dispatch to.  */
+  auto_vec<basic_block, 2> dispatchers;
+  auto_vec<basic_block, 16> worklist;
+  auto_sbitmap reachable (last_basic_block_for_fn (cfun));
+  bitmap_clear (reachable);
+  basic_block bb;
+  edge e;
+  edge_iterator ei;
+  FOR_EACH_BB_FN (bb, cfun)
+    {
+      gimple_stmt_iterator gsi = gsi_start_nondebug_after_labels_bb (bb);
+      if (gsi_end_p (gsi)
+	  || !gimple_call_internal_p (gsi_stmt (gsi), IFN_ABNORMAL_DISPATCHER))
+	continue;
+      dispatchers.safe_push (bb);
+      FOR_EACH_EDGE (e, ei, bb->succs)
+	if (bitmap_set_bit (reachable, e->dest->index))
+	  worklist.safe_push (e->dest);
+    }
+  if (dispatchers.is_empty ())
+    return;
+  while (!worklist.is_empty ())
+    {
+      bb = worklist.pop ();
+      FOR_EACH_EDGE (e, ei, bb->succs)
+	if (e->dest != EXIT_BLOCK_PTR_FOR_FN (cfun)
+	    && bitmap_set_bit (reachable, e->dest->index))
+	  worklist.safe_push (e->dest);
+    }
+
+  /* A PHI in a receiver gives the value of a variable when a returns-twice
+     call returns.  Its argument for the edge from the dispatcher is the
+     value that the variable has at the calls that might longjmp, either
+     directly or through a PHI in the dispatcher.  The variable cannot
+     have changed if it has the same value at all such calls reachable
+     from the receivers, and if it keeps that value when a receiver is
+     reached again, e.g. through a loop back edge.  */
+  auto_bitmap seen, changed;
+  for (basic_block dispatcher : dispatchers)
+    FOR_EACH_EDGE (e, ei, dispatcher->succs)
+      for (gphi_iterator gpi = gsi_start_phis (e->dest); !gsi_end_p (gpi);
+	   gsi_next (&gpi))
+	{
+	  gphi *phi = gpi.phi ();
+	  tree res = gimple_phi_result (phi);
+	  tree var = SSA_NAME_VAR (res);
+	  if (virtual_operand_p (res)
+	      || !var
+	      || (!VAR_P (var) && TREE_CODE (var) != PARM_DECL))
+	    continue;
+	  bitmap_set_bit (seen, DECL_UID (var));
+
+	  bool ok = true;
+	  tree arg = PHI_ARG_DEF_FROM_EDGE (phi, e);
+	  if (arg != res)
+	    {
+	      gimple *def = (TREE_CODE (arg) == SSA_NAME
+			     ? SSA_NAME_DEF_STMT (arg) : NULL);
+	      if (def
+		  && gimple_code (def) == GIMPLE_PHI
+		  && gimple_bb (def) == dispatcher)
+		{
+		  edge de;
+		  edge_iterator dei;
+		  FOR_EACH_EDGE (de, dei, dispatcher->preds)
+		    if (bitmap_bit_p (reachable, de->src->index)
+			&& PHI_ARG_DEF_FROM_EDGE (as_a <gphi *> (def), de) != res)
+		      ok = false;
+		}
+	      else
+		ok = false;
+	    }
+
+	  edge pe;
+	  edge_iterator pei;
+	  FOR_EACH_EDGE (pe, pei, e->dest->preds)
+	    if (pe != e
+		&& bitmap_bit_p (reachable, pe->src->index)
+		&& PHI_ARG_DEF_FROM_EDGE (phi, pe) != res)
+	      ok = false;
+
+	  if (!ok)
+	    bitmap_set_bit (changed, DECL_UID (var));
+	}
+
+  bitmap_obstack_initialize (&setjmp_unmodified_obstack);
+  setjmp_unmodified_vars = BITMAP_ALLOC (&setjmp_unmodified_obstack);
+  bitmap_and_compl (setjmp_unmodified_vars, seen, changed);
+}
+
+/* Return true if DECL might change after a returns-twice call returns.  */
+
+static bool
+setjmp_maybe_modified_p (const_tree decl)
+{
+  return !(setjmp_unmodified_vars
+	   && bitmap_bit_p (setjmp_unmodified_vars, DECL_UID (decl)));
+}
+
 /* True if register REGNO was alive at a place where `setjmp' was
    called and was set more than once or is an argument.  Such regs may
    be clobbered by `longjmp'.  */
@@ -4364,7 +4501,8 @@ setjmp_vars_warning (bitmap setjmp_crosses, tree block)
       if (VAR_P (decl)
 	  && DECL_RTL_SET_P (decl)
 	  && REG_P (DECL_RTL (decl))
-	  && regno_clobbered_at_setjmp (setjmp_crosses, REGNO (DECL_RTL (decl))))
+	  && regno_clobbered_at_setjmp (setjmp_crosses, REGNO (DECL_RTL (decl)))
+	  && setjmp_maybe_modified_p (decl))
 	warning (OPT_Wclobbered, "variable %q+D might be clobbered by"
                  " %<longjmp%> or %<vfork%>", decl);
     }
@@ -4384,7 +4522,8 @@ setjmp_args_warning (bitmap setjmp_crosses)
        decl; decl = DECL_CHAIN (decl))
     if (DECL_RTL (decl) != 0
 	&& REG_P (DECL_RTL (decl))
-	&& regno_clobbered_at_setjmp (setjmp_crosses, REGNO (DECL_RTL (decl))))
+	&& regno_clobbered_at_setjmp (setjmp_crosses, REGNO (DECL_RTL (decl)))
+	&& setjmp_maybe_modified_p (decl))
       warning (OPT_Wclobbered,
                "argument %q+D might be clobbered by %<longjmp%> or %<vfork%>",
 	       decl);
@@ -4596,7 +4735,10 @@ generate_setjmp_warnings (void)
 
   if (n_basic_blocks_for_fn (cfun) == NUM_FIXED_BLOCKS
       || bitmap_empty_p (setjmp_crosses))
-    return;
+    {
+      free_setjmp_unmodified_vars ();
+      return;
+    }
 
   /* SETJMP_CROSSES has everything live across a setjmp call, which is what
      register allocation must be careful about.  Only warn about what might
@@ -4613,11 +4755,12 @@ generate_setjmp_warnings (void)
 	}
   bitmap_and_into (candidates, setjmp_crosses);
 
-  if (bitmap_empty_p (candidates))
-    return;
-
-  setjmp_vars_warning (candidates, DECL_INITIAL (current_function_decl));
-  setjmp_args_warning (candidates);
+  if (!bitmap_empty_p (candidates))
+    {
+      setjmp_vars_warning (candidates, DECL_INITIAL (current_function_decl));
+      setjmp_args_warning (candidates);
+    }
+  free_setjmp_unmodified_vars ();
 }
 
 

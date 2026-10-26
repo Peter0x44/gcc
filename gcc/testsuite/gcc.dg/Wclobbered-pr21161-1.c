@@ -102,3 +102,31 @@ f4 (int x)
     }
   return 0;
 }
+
+/* Variables that are only assigned before setjmp cannot be clobbered.  */
+
+int
+f5 (int c)
+{
+  jmp_buf env;
+  int y = 1;	/* { dg-bogus "clobbered" } */
+  if (c)
+    y = bar ();
+  if (setjmp (env))
+    return y;
+  baz (&env);
+  return 0;
+}
+
+int
+f6 (int n)
+{
+  jmp_buf env;
+  int y = 0;	/* { dg-bogus "clobbered" } */
+  for (int i = 0; i < n; i++)
+    y += bar ();
+  if (setjmp (env))
+    return y;
+  baz (&env);
+  return y + 1;
+}
